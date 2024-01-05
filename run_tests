@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+set -euo pipefail
+
+export B9_ROOT="$(dirname "$0")"
+
+shunit2 tests/test_lib_fundation.sh
