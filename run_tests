@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
-export B9_ROOT="$(dirname "$0")"
+cd "$(dirname "$0")"
+export B9_ROOT="$(pwd)"
 
-shunit2 tests/test_lib_fundation.sh
+shunit2 "tests/test_lib_fundation.sh"
+shunit2 "tests/test_lib_xccommand.sh"

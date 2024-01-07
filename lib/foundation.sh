@@ -1,7 +1,5 @@
 #!/bin/zsh
 
-set -euo pipefail
-
 # Check if a variable is empty or 0 or false
 #
 # Return: 0 if variable is not empty or 0 or false

@@ -1,9 +1,9 @@
-# Description: Tests for lib_fundation.sh
+# Description: Tests for lib/foundation.sh
 
 if [ -z "$B9_ROOT" ]; then
-    B9_ROOT="$(dirname "$0")/.."
+    B9_ROOT="$(dirname "$1")/.."
 fi
-. "$B9_ROOT/lib_fundation.sh"
+. "$B9_ROOT/lib/foundation.sh"
 
 testCheckVar() {
     result=$(check_var "test")
