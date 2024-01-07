@@ -1,13 +1,18 @@
 #!/bin/zsh
 
-. "$(dirname "$0")/log.sh"
-. "$(dirname "$0")/foundation.sh"
-
 # include once
 if [[ -n "${_B9_LIB_XCCOMMAND_INCLUDED_:-}" ]]; then
     return
 fi
 readonly _B9_LIB_XCCOMMAND_INCLUDED_=true
+
+if [ -n "${BASH_VERSION:-}" ]; then
+    _lib_="$(dirname "${BASH_SOURCE[0]}")"
+else
+    _lib_="${${(%):-%x}:A:h}"
+fi
+. "$_lib_/foundation.sh"
+. "$_lib_/log.sh"
 
 readonly _xcParameterList=(
     "XC_WORKSPACE"
@@ -71,17 +76,17 @@ xcCommand() {
         fi
     fi
 
-    if [[ $(check_var "${XC_DISABLE_CODE_SIGNING:-}") == 0 ]]; then
+    if [[ $(checkVar "${XC_DISABLE_CODE_SIGNING:-}") == 0 ]]; then
         command+=("CODE_SIGNING_ALLOWED=NO")
     fi
 
-    if [[ $(check_var "${XC_CLEAN:-}") == 0 ]]; then
+    if [[ $(checkVar "${XC_CLEAN:-}") == 0 ]]; then
         command+=("clean")
     fi
     command+=("${xcAction}")
 
     local outputCommand=()
-    if [[ $(check_var "${XC_BEAUTIFY:-}") == 0 ]]; then
+    if [[ $(checkVar "${XC_BEAUTIFY:-}") == 0 ]]; then
         if ! command -v xcbeautify &> /dev/null; then
             logWarning "xcCommand: xcbeautify not found, ignore XC_BEAUTIFY."
         else
@@ -89,7 +94,7 @@ xcCommand() {
             # if [[ -n "${XC_LOG_FILE:-}" ]]; then
             #     outputCommand+=("--disable-colored-output")
             # fi
-            if [[ $(check_var "${GITHUB_ACTIONS:-}") == 0 ]]; then
+            if [[ $(checkVar "${GITHUB_ACTIONS:-}") == 0 ]]; then
                 outputCommand+=("--renderer" "github-actions")
             fi
         fi
@@ -115,9 +120,16 @@ xcCommandParametersPrint() {
 # Reset all xcCommand environment variables
 xcCommandParametersRestAll() {
     for param in "${_xcParameterList[@]}"; do
-        if [[ -n "${(P)param:-}" ]]; then
-            logWarning "Unset $param."
-            unset "$param"
+        if [ -n "${BASH_VERSION:-}" ]; then
+            if [[ -n "${!param:-}" ]]; then
+                logWarning "Unset $param."
+                unset "$param"
+            fi
+        else
+            if [[ -n "${(P)param:-}" ]]; then
+                logWarning "Unset $param."
+                unset "$param"
+            fi
         fi
     done
 }

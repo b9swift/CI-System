@@ -6,7 +6,7 @@ if [[ -n "${_B9_LIB_LOG_INCLUDED_:-}" ]]; then
 fi
 readonly _B9_LIB_LOG_INCLUDED_=true
 
-if [[ $(tput colors) -ge 8 ]]; then
+if [[ $(tput colors 2>/dev/null) -ge 8 ]]; then
     readonly _B9_LIB_LOG_COLOR_SUPPORTED_=true
 else
     readonly _B9_LIB_LOG_COLOR_SUPPORTED_=false
@@ -17,7 +17,7 @@ logInfo() {
     if $_B9_LIB_LOG_COLOR_SUPPORTED_; then
         printf "\033[32m%s\033[0m\n" "$1" >&2
     else
-        echo "🔵 $1" >&2
+        echo "🟢 $1" >&2
     fi
 }
 
@@ -26,7 +26,7 @@ logWarning() {
     if $_B9_LIB_LOG_COLOR_SUPPORTED_; then
         printf "\033[33m%s\033[0m\n" "$1" >&2
     else
-        echo "🟠 $1" >&2
+        echo "🟡 $1" >&2
     fi
 }
 
