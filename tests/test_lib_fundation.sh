@@ -1,4 +1,5 @@
 #!/bin/bash
+# test
 
 if [ -z "$B9_ROOT" ]; then
     B9_ROOT="$(dirname "${BASH_SOURCE:-$_}")/.."
