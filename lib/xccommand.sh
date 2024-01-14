@@ -21,6 +21,7 @@ readonly _xcParameterList=(
     "XC_PROJECT"
     "XC_SCHEME"
     "XC_CONFIGURATION"
+    "XC_RESULT_BUNDLE"
     "XC_DESTINATION"
     "XC_CLEAN"
     "XC_DISABLE_CODE_SIGNING"
@@ -39,6 +40,7 @@ readonly _xcParameterList=(
 # - XC_SCHEME, scheme name
 # - XC_CONFIGURATION, build configuration, eg. Debug/Release/...
 # - XC_DESTINATION, target device, value can be the full parameter or abbreviations like mac, ios, watchos, tvos
+# - XC_RESULT_BUNDLE, path to xcresult bundle
 # - XC_CLEAN, set to true to clean before executing the action
 # - XC_DISABLE_CODE_SIGNING, set to true to disable code signing
 # - XC_BEAUTIFY, set to true to format output using xcbeautify
@@ -76,6 +78,10 @@ xcCommand() {
         else
             command+=("-destination" "${XC_DESTINATION}")
         fi
+    fi
+
+    if [[ -n "${XC_RESULT_BUNDLE:-}" ]]; then
+        command+=("-resultBundlePath" "${XC_RESULT_BUNDLE}")
     fi
 
     if [[ $(checkVar "${XC_DISABLE_CODE_SIGNING:-}") == 0 ]]; then

@@ -69,6 +69,13 @@ testDestination() {
     assertEquals "parameters:" "[-destination custom build]" "$result"
 }
 
+testResultBundle() {
+    XC_RESULT_BUNDLE="xcResult"
+    result=$(xcCommand build)
+    assertEquals "parameters count:" $? 3
+    assertEquals "parameters:" "[-resultBundlePath xcResult build]" "$result"
+}
+
 testDisableCodeSigning() {
     XC_DISABLE_CODE_SIGNING="1"
     result=$(xcCommand build)
