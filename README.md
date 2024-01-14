@@ -2,7 +2,7 @@
 
 ## Tools
 
-### fetch_mr
+### fetch-mr
 
 Fetch merge request.
 
@@ -11,7 +11,7 @@ Environment variables:
 * `CI_CHANGE_LIST_PATH`: Save changed files list to this path.
 * `CI_GIT_MR_BRANCH`: Merge request branch name.
 
-### pod_install
+### pod-install
 
 Smart CocoaPods install.
 
