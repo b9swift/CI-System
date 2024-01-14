@@ -28,3 +28,30 @@ prepeareResultFile() {
         rm -r "$1"
     fi
 }
+
+# Show progress dots
+#
+# Usage：
+# xcodebuild ... 2>&1 | showProgress
+showProgress() {
+    local last_print_time=$(date +%s)
+    local -i dots=0
+    while read line; do
+        local current_time=$(date +%s)
+        if [[ $((current_time - last_print_time)) -lt 1 ]]; then
+            continue
+        elif [[ $((current_time - last_print_time)) -ge 3 ]]; then
+            printf "\n"
+            dots=0
+        fi
+
+        last_print_time=$current_time
+
+        if [[ $dots -lt 80 ]]; then
+            printf "."
+            dots+=1
+        fi
+    done
+
+    printf "\n"
+}
