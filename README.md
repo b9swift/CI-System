@@ -2,6 +2,15 @@
 
 ## Tools
 
+### build-ios
+
+Build iOS target.
+
+Environment variables:
+
+* Supports [xcCommand](#xcCommand) variables.
+* `CI_CHECK_STYLE_FILE`: Export checkstyle.xml to this path.
+
 ### fetch-mr
 
 Fetch merge request.
@@ -19,9 +28,30 @@ Environment variables:
 
 * `CI_POD_INSTALL_LOG_FILE`: Path to the log file. Default: `build/pod_install.log`
 
+## Common Variables
+
+### xcCommand
+
+Inputs:
+
+- `XC_WORKSPACE`, workspace file path
+- `XC_PROJECT`, project file path
+- `XC_SCHEME`, scheme name
+- `XC_CLEAN`, set to `true` to clean before executing the action
+- `XC_CONFIGURATION`, build configuration, eg. `Debug`/`Release`/...
+- `XC_DESTINATION`, target device, value can be the full parameter or abbreviations like `mac`, `ios`, `watchos`, `tvos`
+- `XC_DISABLE_CODE_SIGNING`, set to `true` to disable code signing
+- `XC_RESULT_BUNDLE`, path to xcresult bundle
+- `XC_LOG_FILE`, path to log file
+- `XC_BEAUTIFY`, set to `true` to format output using xcbeautify
+
+Outputs:
+
+- `CI_XCBEATIFY_USED`, whether xcbeautify is actually used
+
 ## Run Tests
 
-Install [shunit2](https://github.com/kward/shunit2) first.
+[shunit2](https://github.com/kward/shunit2) required. You can install it via Homebrew.
 
 ```zsh
 $ ./run_tests

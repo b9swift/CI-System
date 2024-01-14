@@ -20,13 +20,17 @@ readonly _xcParameterList=(
     "XC_WORKSPACE"
     "XC_PROJECT"
     "XC_SCHEME"
-    "XC_CONFIGURATION"
-    "XC_RESULT_BUNDLE"
-    "XC_DESTINATION"
     "XC_CLEAN"
+    "XC_CONFIGURATION"
+    "XC_DESTINATION"
     "XC_DISABLE_CODE_SIGNING"
+    "XC_RESULT_BUNDLE"
+    "XC_REDIRECT_STDERR"
+    "XC_LOG_FILE"
     "XC_BEAUTIFY"
 )
+
+CI_XCBEATIFY_USED=false
 
 # Wrapper for xcodebuild command
 # 
@@ -38,15 +42,17 @@ readonly _xcParameterList=(
 # - XC_WORKSPACE, workspace file path
 # - XC_PROJECT, project file path
 # - XC_SCHEME, scheme name
+# - XC_CLEAN, set to true to clean before executing the action
 # - XC_CONFIGURATION, build configuration, eg. Debug/Release/...
 # - XC_DESTINATION, target device, value can be the full parameter or abbreviations like mac, ios, watchos, tvos
-# - XC_RESULT_BUNDLE, path to xcresult bundle
-# - XC_CLEAN, set to true to clean before executing the action
 # - XC_DISABLE_CODE_SIGNING, set to true to disable code signing
+# - XC_RESULT_BUNDLE, path to xcresult bundle
+# - XC_REDIRECT_STDERR, wheather redirect stderr to stdout
+# - XC_LOG_FILE, path to log file
 # - XC_BEAUTIFY, set to true to format output using xcbeautify
 #
 xcCommand() {
-    local command=("xcodebuild")
+    local xcParts=("xcodebuild")
     if [[ -z "${1:-}" ]]; then
         logError "xcCommand: no action specified"
         return 1
@@ -54,69 +60,84 @@ xcCommand() {
     xcAction=$1
 
     if [[ -n "${XC_WORKSPACE:-}" ]]; then
-        command+=("-workspace" "${XC_WORKSPACE}")
+        x c+=("-workspace" "${XC_WORKSPACE}")
     fi
     if [[ -n "${XC_PROJECT:-}" ]]; then
-        command+=("-project" "${XC_PROJECT}")
+        xcParts+=("-project" "${XC_PROJECT}")
     fi
     if [[ -n "${XC_SCHEME:-}" ]]; then
-        command+=("-scheme" "${XC_SCHEME}")
+        xcParts+=("-scheme" "${XC_SCHEME}")
     fi
     if [[ -n "${XC_CONFIGURATION:-}" ]]; then
-        command+=("-configuration" "${XC_CONFIGURATION}")
+        xcParts+=("-configuration" "${XC_CONFIGURATION}")
     fi
 
     if [[ -n "${XC_DESTINATION:-}" ]]; then
         if [[ "${XC_DESTINATION}" == "mac" ]]; then
-            command+=("-destination" "generic/platform=macOS")
+            xcParts+=("-destination" "generic/platform=macOS")
         elif [[ "${XC_DESTINATION}" == "ios" ]]; then
-            command+=("-destination" "generic/platform=iOS")
+            xcParts+=("-destination" "generic/platform=iOS")
         elif [[ "${XC_DESTINATION}" == "watchos" ]]; then
-            command+=("-destination" "generic/platform=watchOS")
+            xcParts+=("-destination" "generic/platform=watchOS")
         elif [[ "${XC_DESTINATION}" == "tvos" ]]; then
-            command+=("-destination" "generic/platform=tvOS")
+            xcParts+=("-destination" "generic/platform=tvOS")
         else
-            command+=("-destination" "${XC_DESTINATION}")
+            xcParts+=("-destination" "${XC_DESTINATION}")
         fi
     fi
 
     if [[ -n "${XC_RESULT_BUNDLE:-}" ]]; then
-        command+=("-resultBundlePath" "${XC_RESULT_BUNDLE}")
+        xcParts+=("-resultBundlePath" "${XC_RESULT_BUNDLE}")
     fi
 
     if [[ $(checkVar "${XC_DISABLE_CODE_SIGNING:-}") == 0 ]]; then
-        command+=("CODE_SIGNING_ALLOWED=NO")
+        xcParts+=("CODE_SIGNING_ALLOWED=NO")
     fi
 
     if [[ $(checkVar "${XC_CLEAN:-}") == 0 ]]; then
-        command+=("clean")
+        xcParts+=("clean")
     fi
-    command+=("${xcAction}")
+    xcParts+=("${xcAction}")
+    # if [[ $(checkVar "${XC_REDIRECT_STDERR:-}") == 0 ]]; then
+    #     xcParts+=("2>&1")
+    # fi
 
-    local outputCommand=()
+    local beautyParts=()
+    typeset -g CI_XCBEATIFY_USED=false
     if [[ $(checkVar "${XC_BEAUTIFY:-}") == 0 ]]; then
-        if ! command -v xcbeautify &> /dev/null; then
+        if ! xcParts -v xcbeautify &> /dev/null; then
             logWarning "xcCommand: xcbeautify not found, ignore XC_BEAUTIFY."
         else
-            outputCommand+=("xcbeautify")
+            beautyParts+=("xcbeautify")
             if ! $_B9_LIB_LOG_COLOR_SUPPORTED_; then
-                outputCommand+=("--disable-colored-output")
+                beautyParts+=("--disable-colored-output")
             elif [[ -n "${XC_LOG_FILE:-}" ]]; then
-                outputCommand+=("--disable-colored-output")
+                beautyParts+=("--disable-colored-output")
             fi
             if [[ $(checkVar "${GITHUB_ACTIONS:-}") == 0 ]]; then
-                outputCommand+=("--renderer" "github-actions")
+                beautyParts+=("--renderer" "github-actions")
             fi
+            CI_XCBEATIFY_USED=true
         fi
     fi
 
-    # xcCommandParametersPrint
-    if [[ -n "${outputCommand}" ]]; then
-        logInfo "xcCommand: ${command[*]} | ${outputCommand[*]}"
-        "${command[@]}" | "${outputCommand[@]}"
+    local logParts=()
+    if [[ -n "${XC_LOG_FILE:-}" ]]; then
+        loParts+=("tee" "${XC_LOG_FILE}")
+    fi
+
+    if [[ -n "${logParts}" && -n "${beautyParts}" ]]; then
+        logInfo "xcCommand: ${xcParts[*]} | ${beautyParts[*]} | ${logParts[*]}"
+        "${xcParts[@]}" | "${beautyParts[@]}" | "${logParts[@]}"
+    elif [[ -n "${logParts}" ]]; then
+        logInfo "xcCommand: ${xcParts[*]} | ${logParts[*]}"
+        "${xcParts[@]}" | "${logParts[@]}"
+    elif [[ -n "${beautyParts}" ]]; then
+        logInfo "xcCommand: ${xcParts[*]} | ${beautyParts[*]}"
+        "${xcParts[@]}" | "${beautyParts[@]}"
     else
-        logInfo "xcCommand: ${command[*]}"
-        "${command[@]}"
+        logInfo "xcCommand: ${xcParts[*]}"
+        "${xcParts[@]}"
     fi
 }
 

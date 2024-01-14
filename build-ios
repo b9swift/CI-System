@@ -1,0 +1,63 @@
+#!/bin/zsh
+# https://github.com/b9swift/CI-System
+# Copyright (c) 2024 BB9z, MIT License
+
+set -euo pipefail
+
+. "$(dirname $0)/lib/checkstyle.sh"
+. "$(dirname $0)/lib/xccommand.sh"
+
+# Default configuration
+if [[ -z "${XC_DESTINATION:-}" ]]; then
+    XC_DESTINATION="ios"
+fi
+if [[ ! -v XC_BEAUTIFY ]]; then
+    XC_BEAUTIFY=1
+fi
+if [[ ! -v XC_REDIRECT_STDERR ]]; then
+    XC_REDIRECT_STDERR=1
+fi
+
+if [[ ! -v XC_RESULT_BUNDLE ]]; then
+    XC_RESULT_BUNDLE="build/xc-build.xcresult"
+    logInfo "[Path] Use default result bundle: $XC_RESULT_BUNDLE"
+fi
+if [[ ! -v XC_LOG_FILE ]]; then
+    XC_LOG_FILE="build/xc-build.log"
+    logInfo "[Path] Use default log file: $XC_LOG_FILE"
+elif [[ -n "${CI_CHECK_STYLE_FILE:-}" ]]; then
+    XC_LOG_FILE="build/xc-build.log"
+    logInfo "[Path] Use default log file: $XC_LOG_FILE"
+fi
+
+if [[ -n $XC_RESULT_BUNDLE ]]; then
+    prepeareResultFile "$XC_RESULT_BUNDLE"
+fi
+
+logInfo "[Xcode] Building..."
+
+if [[ -n $XC_LOG_FILE ]]; then
+    logInfo "Log file: $XC_LOG_FILE"
+    prepeareResultFile "$XC_LOG_FILE"
+    xcCommand build | showProgress || {
+        logError "[Xcode] Build failed:"
+        tail -n 50 "$XC_LOG_FILE"
+        exit 1
+    }
+    logInfo "[Xcode] Building completed."
+    tail -n 4 "$XC_LOG_FILE"
+
+    # typeset -g CI_XCBEATIFY_USED
+    # logWarning "CI_XCBEATIFY_USED=$CI_XCBEATIFY_USED"
+    if [[ -n "${CI_CHECK_STYLE_FILE:-}" ]]; then
+        if $CI_XCBEATIFY_USED; then
+            checkstyleFromXcbeautify < "$XC_LOG_FILE" > "$CI_CHECK_STYLE_FILE"
+        else
+            checkstyleFromXcodebuild < "$XC_LOG_FILE" > "$CI_CHECK_STYLE_FILE"
+        fi
+    fi
+else
+    xcCommand build
+    logInfo "[Xcode] Building completed."
+    # logWarning "CI_XCBEATIFY_USED=$CI_XCBEATIFY_USED"
+fi
