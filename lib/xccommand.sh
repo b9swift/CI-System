@@ -99,9 +99,11 @@ xcCommand() {
             logWarning "xcCommand: xcbeautify not found, ignore XC_BEAUTIFY."
         else
             outputCommand+=("xcbeautify")
-            # if [[ -n "${XC_LOG_FILE:-}" ]]; then
-            #     outputCommand+=("--disable-colored-output")
-            # fi
+            if ! $_B9_LIB_LOG_COLOR_SUPPORTED_; then
+                outputCommand+=("--disable-colored-output")
+            elif [[ -n "${XC_LOG_FILE:-}" ]]; then
+                outputCommand+=("--disable-colored-output")
+            fi
             if [[ $(checkVar "${GITHUB_ACTIONS:-}") == 0 ]]; then
                 outputCommand+=("--renderer" "github-actions")
             fi
