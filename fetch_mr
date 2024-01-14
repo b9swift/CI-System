@@ -1,0 +1,26 @@
+#!/bin/zsh
+
+set -euo pipefail
+
+. "$(dirname "$0")/lib/log.sh"
+
+if [[ -z "${CI_GIT_MR_BRANCH:-}" ]]; then
+    logWarning "[MergeRequests] CI_GIT_MR_BRANCH not set, skip."
+    return 0
+fi
+
+logInfo "[MergeRequests] Fetching branch $CI_GIT_MR_BRANCH..."
+
+git remote prune origin
+git fetch origin "$CI_GIT_MR_BRANCH"
+
+if [[ -n "${CI_CHANGE_LIST_PATH:-}" ]]; then
+    git diff --name-only "origin/$CI_GIT_MR_BRANCH" > "$CI_CHANGE_LIST_PATH"
+fi
+
+git merge "origin/$CI_GIT_MR_BRANCH" --no-edit --no-commit --no-verify || {
+    git merge --abort || true
+    logError "[MergeRequests] Conflict may occur, try to resolve it first."
+    exit 1
+}
+logInfo "[MergeRequests] Merge completed."

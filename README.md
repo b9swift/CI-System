@@ -2,12 +2,22 @@
 
 ## Tools
 
-* pod_install
-  Smart CocoaPods install.
+### fetch_mr
 
-  Environment variables:
+Fetch merge request.
 
-    * `CI_POD_INSTALL_LOG_FILE`: Path to the log file. Default: `build/pod_install.log`
+Environment variables:
+
+* `CI_CHANGE_LIST_PATH`: Save changed files list to this path.
+* `CI_GIT_MR_BRANCH`: Merge request branch name.
+
+### pod_install
+
+Smart CocoaPods install.
+
+Environment variables:
+
+* `CI_POD_INSTALL_LOG_FILE`: Path to the log file. Default: `build/pod_install.log`
 
 ## Run Tests
 
