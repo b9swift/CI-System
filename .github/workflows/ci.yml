@@ -1,6 +1,14 @@
+# https://github.com/b9swift/CI-System
+# Copyright (c) 2024 BB9z, MIT License
+
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  schedule:
+    # Every two months
+    - cron: "3 4 5 */2 *"
 
 jobs:
   test:

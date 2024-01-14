@@ -1,4 +1,6 @@
 #!/bin/zsh
+# https://github.com/b9swift/CI-System
+# Copyright (c) 2024 BB9z, MIT License
 
 # include once
 if [[ -n "${_B9_LIB_LOG_INCLUDED_:-}" ]]; then

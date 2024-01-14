@@ -1,4 +1,6 @@
 #!/bin/bash
+# https://github.com/b9swift/CI-System
+# Copyright (c) 2024 BB9z, MIT License
 
 if [ -z "$B9_ROOT" ]; then
     B9_ROOT="$(dirname "${BASH_SOURCE:-$_}")/.."

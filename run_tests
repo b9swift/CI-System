@@ -1,4 +1,6 @@
 #!/bin/zsh
+# https://github.com/b9swift/CI-System
+# Copyright (c) 2024 BB9z, MIT License
 
 set -euo pipefail
 

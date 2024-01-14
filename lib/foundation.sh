@@ -1,4 +1,6 @@
 #!/bin/zsh
+# https://github.com/b9swift/CI-System
+# Copyright (c) 2024 BB9z, MIT License
 
 # Check if a variable is empty or 0 or false
 #

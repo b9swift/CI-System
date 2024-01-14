@@ -1,4 +1,7 @@
 #!/bin/zsh
+# https://github.com/b9swift/CI-System
+# Copyright (c) 2024 BB9z, MIT License
+#
 # Smart pod install, runs when needed
 
 set -euo pipefail
