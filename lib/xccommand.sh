@@ -30,7 +30,10 @@ readonly _xcParameterList=(
     "XC_BEAUTIFY"
 )
 
-CI_XCBEATIFY_USED=false
+# Store commands executed by xcCommand
+typeset -g -a -x CI_XC_COMMANDS=()
+# Whether xcbeautify is used
+typeset -g CI_XCBEATIFY_USED=false
 
 # Wrapper for xcodebuild command
 # 
@@ -52,15 +55,24 @@ CI_XCBEATIFY_USED=false
 # - XC_BEAUTIFY, set to true to format output using xcbeautify
 #
 xcCommand() {
-    local xcParts=("xcodebuild")
     if [[ -z "${1:-}" ]]; then
         logError "xcCommand: no action specified"
         return 1
     fi
-    xcAction=$1
+    typeset -g _xcAction="$1"
+
+    # if [[ $(checkVar "${XC_REDIRECT_STDERR:-}") == 0 ]]; then
+    #     xcParts+=("2>&1")
+    # fi
+
+    _xcChain3
+}
+
+_xcChain1() {
+    local xcParts=("xcodebuild")
 
     if [[ -n "${XC_WORKSPACE:-}" ]]; then
-        x c+=("-workspace" "${XC_WORKSPACE}")
+        xcParts+=("-workspace" "${XC_WORKSPACE}")
     fi
     if [[ -n "${XC_PROJECT:-}" ]]; then
         xcParts+=("-project" "${XC_PROJECT}")
@@ -97,15 +109,18 @@ xcCommand() {
     if [[ $(checkVar "${XC_CLEAN:-}") == 0 ]]; then
         xcParts+=("clean")
     fi
-    xcParts+=("${xcAction}")
-    # if [[ $(checkVar "${XC_REDIRECT_STDERR:-}") == 0 ]]; then
-    #     xcParts+=("2>&1")
-    # fi
+    xcParts+=("${_xcAction}")
 
+    CI_XC_COMMANDS=("${xcParts[@]}" "${CI_XC_COMMANDS[@]}")
+    logInfo "xcCommand: ${CI_XC_COMMANDS[*]}"
+    "${xcParts[@]}"
+}
+
+_xcChain2() {
     local beautyParts=()
-    typeset -g CI_XCBEATIFY_USED=false
+    CI_XCBEATIFY_USED=false
     if [[ $(checkVar "${XC_BEAUTIFY:-}") == 0 ]]; then
-        if ! xcParts -v xcbeautify &> /dev/null; then
+        if ! command -v xcbeautify &> /dev/null; then
             logWarning "xcCommand: xcbeautify not found, ignore XC_BEAUTIFY."
         else
             beautyParts+=("xcbeautify")
@@ -121,23 +136,25 @@ xcCommand() {
         fi
     fi
 
+    if [[ -n "${beautyParts}" ]]; then
+        CI_XC_COMMANDS=("|" "${beautyParts[@]}" "${CI_XC_COMMANDS[@]}")
+        _xcChain1 | "${beautyParts[@]}"
+    else
+        _xcChain1
+    fi
+}
+
+_xcChain3() {
     local logParts=()
     if [[ -n "${XC_LOG_FILE:-}" ]]; then
-        loParts+=("tee" "${XC_LOG_FILE}")
+        logParts+=("tee" "${XC_LOG_FILE}")
     fi
 
-    if [[ -n "${logParts}" && -n "${beautyParts}" ]]; then
-        logInfo "xcCommand: ${xcParts[*]} | ${beautyParts[*]} | ${logParts[*]}"
-        "${xcParts[@]}" | "${beautyParts[@]}" | "${logParts[@]}"
-    elif [[ -n "${logParts}" ]]; then
-        logInfo "xcCommand: ${xcParts[*]} | ${logParts[*]}"
-        "${xcParts[@]}" | "${logParts[@]}"
-    elif [[ -n "${beautyParts}" ]]; then
-        logInfo "xcCommand: ${xcParts[*]} | ${beautyParts[*]}"
-        "${xcParts[@]}" | "${beautyParts[@]}"
+    if [[ -n "${logParts}" ]]; then
+        CI_XC_COMMANDS=("|" "${logParts[@]}" "${CI_XC_COMMANDS[@]}")
+        _xcChain2 | "${logParts[@]}"
     else
-        logInfo "xcCommand: ${xcParts[*]}"
-        "${xcParts[@]}"
+        _xcChain2
     fi
 }
 
