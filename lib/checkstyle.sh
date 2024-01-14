@@ -12,6 +12,8 @@ readonly _B9_LIB_CHECKSTYLE_INCLUDED_=true
 #
 # Usage:
 #   xcodebuild ... | checkstyleFromXcodebuild > checkstyle.xml
+#   # OR
+#   checkstyleFromXcodebuild < "build/xc-build.log"
 checkstyleFromXcodebuild() {
     awk -F ":" '
     BEGIN {
@@ -51,6 +53,8 @@ checkstyleFromXcodebuild() {
 #
 # Usage:
 #   xcodebuild ... | xcbeautify | checkstyleFromXcbeautify > checkstyle.xml
+#   # OR
+#   checkstyleFromXcbeautify < "build/xc-build.log"
 checkstyleFromXcbeautify() {
     awk -F ":" '
     BEGIN {
