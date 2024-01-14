@@ -18,3 +18,22 @@ testCheckVar() {
     result=$(checkVar "false")
     assertEquals "Expected 1 for string 'false'" "1" "$result"
 }
+
+testPrepeareResultFile() {
+    # Test case 1: File path with existing parent folder
+    filePath="tests/result.txt"
+    touch "$filePath"
+    prepeareResultFile "$filePath"
+    assertFalse "Expected file to be deleted" "[ -e $filePath ]"
+
+    # Test case 2: File path with non-existing parent folder
+    noExistingFolder="tests/non-existing/folder"
+    rm -r "tests/non-existing"
+    assertFalse "No directory" "[ -d $noExistingFolder ]"
+
+    filePath="$noExistingFolder/result.txt"
+    prepeareResultFile "$filePath"
+    assertTrue "Expected parent folder to be created" "[ -d $noExistingFolder ]"
+    assertFalse "Expected file to be deleted" "[ -e $filePath ]"
+    rm -r "tests/non-existing"
+}

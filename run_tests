@@ -5,5 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 export B9_ROOT="$(pwd)"
 
-shunit2 "tests/test_lib_fundation.sh"
-shunit2 "tests/test_lib_xccommand.sh"
+for testFile in tests/test_*.sh; do
+    echo "\n[Test] $(basename "$testFile")"
+    shunit2 "$testFile"
+done
