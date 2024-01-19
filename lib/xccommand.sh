@@ -22,6 +22,7 @@ readonly _xcParameterList=(
     "XC_SCHEME"
     "XC_CLEAN"
     "XC_CONFIGURATION"
+    "XC_DERIVED_DATA"
     "XC_DESTINATION"
     "XC_DISABLE_CODE_SIGNING"
     "XC_RESULT_BUNDLE"
@@ -79,6 +80,9 @@ _xcChain1() {
     fi
     if [[ -n "${XC_CONFIGURATION:-}" ]]; then
         xcParts+=("-configuration" "${XC_CONFIGURATION}")
+    fi
+    if [[ $(checkVar "${XC_DERIVED_DATA-1}") == 0 ]]; then
+        xcParts+=("-derivedDataPath" "${XC_DERIVED_DATA-"build/DerivedData"}")
     fi
 
     if [[ -n "${XC_DESTINATION:-}" ]]; then
