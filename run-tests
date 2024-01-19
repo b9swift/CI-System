@@ -24,6 +24,7 @@ export XC_SCHEME="NoWarning"
 export XC_DISABLE_CODE_SIGNING=1
 export XC_DESTINATION=mac
 export XC_CLEAN=1
+export XC_BEAUTIFY=0
 ./build-ios
 
 logSection "Test workspace has warning"
@@ -34,6 +35,7 @@ export XC_SCHEME="HasWarning"
 export XC_DISABLE_CODE_SIGNING=1
 export XC_DESTINATION=mac
 export XC_CLEAN=1
+export XC_BEAUTIFY=0
 ./build-ios
 
 logInfo "[Done]"

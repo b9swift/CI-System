@@ -45,8 +45,8 @@ logError() {
 logSection() {
     echo "" >&2
     if $_B9_LIB_LOG_COLOR_SUPPORTED_; then
-        printf "\033[44m%s\033[0m\n" "$1" >&2
+        printf "\n\033[44m%s\033[0m\n" "$1" >&2
     else
-        echo "🟦 $1" >&2
+        echo "\n🟦 $1" >&2
     fi
 }
