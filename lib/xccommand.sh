@@ -30,10 +30,7 @@ readonly _xcParameterList=(
     "XC_BEAUTIFY"
 )
 
-# Store commands executed by xcCommand
-typeset -g -a -x CI_XC_COMMANDS=()
-# Whether xcbeautify is used
-typeset -g CI_XCBEATIFY_USED=false
+export _XC_COMMANDS=()
 
 # Wrapper for xcodebuild command
 # 
@@ -59,7 +56,7 @@ xcCommand() {
         logError "xcCommand: no action specified"
         return 1
     fi
-    typeset -g _xcAction="$1"
+    export _xcAction="$1"
 
     # if [[ $(checkVar "${XC_REDIRECT_STDERR:-}") == 0 ]]; then
     #     xcParts+=("2>&1")
@@ -111,14 +108,13 @@ _xcChain1() {
     fi
     xcParts+=("${_xcAction}")
 
-    CI_XC_COMMANDS=("${xcParts[@]}" "${CI_XC_COMMANDS[@]}")
-    logInfo "xcCommand: ${CI_XC_COMMANDS[*]}"
+    _XC_COMMANDS=("${xcParts[@]}" "${_XC_COMMANDS[@]}")
+    logInfo "xcCommand: ${_XC_COMMANDS[*]}"
     "${xcParts[@]}"
 }
 
 _xcChain2() {
     local beautyParts=()
-    CI_XCBEATIFY_USED=false
     if [[ $(checkVar "${XC_BEAUTIFY:-}") == 0 ]]; then
         if ! command -v xcbeautify &> /dev/null; then
             logWarning "xcCommand: xcbeautify not found, ignore XC_BEAUTIFY."
@@ -132,12 +128,11 @@ _xcChain2() {
             if [[ $(checkVar "${GITHUB_ACTIONS:-}") == 0 ]]; then
                 beautyParts+=("--renderer" "github-actions")
             fi
-            CI_XCBEATIFY_USED=true
         fi
     fi
 
     if [[ -n "${beautyParts}" ]]; then
-        CI_XC_COMMANDS=("|" "${beautyParts[@]}" "${CI_XC_COMMANDS[@]}")
+        _XC_COMMANDS=("|" "${beautyParts[@]}" "${_XC_COMMANDS[@]}")
         _xcChain1 | "${beautyParts[@]}"
     else
         _xcChain1
@@ -151,7 +146,7 @@ _xcChain3() {
     fi
 
     if [[ -n "${logParts}" ]]; then
-        CI_XC_COMMANDS=("|" "${logParts[@]}" "${CI_XC_COMMANDS[@]}")
+        _XC_COMMANDS=("|" "${logParts[@]}" "${_XC_COMMANDS[@]}")
         _xcChain2 | "${logParts[@]}"
     else
         _xcChain2

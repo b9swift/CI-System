@@ -20,4 +20,4 @@ jobs:
           brew install shunit2
       - name: Run tests
         run: |
-          ./run_tests
+          ./run-tests

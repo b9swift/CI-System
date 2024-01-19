@@ -37,7 +37,7 @@ fi
 logInfo "[Xcode] Building..."
 
 if [[ -n $XC_LOG_FILE ]]; then
-    logInfo "Log file: $XC_LOG_FILE"
+    # logInfo "Log file: $XC_LOG_FILE"
     prepeareResultFile "$XC_LOG_FILE"
     xcCommand build | showProgress || {
         logError "[Xcode] Build failed:"
@@ -47,8 +47,6 @@ if [[ -n $XC_LOG_FILE ]]; then
     logInfo "[Xcode] Building completed."
     tail -n 4 "$XC_LOG_FILE"
 
-    # typeset -g CI_XCBEATIFY_USED
-    # logWarning "CI_XCBEATIFY_USED=$CI_XCBEATIFY_USED"
     if [[ -n "${CI_CHECK_STYLE_FILE:-}" ]]; then
         if $CI_XCBEATIFY_USED; then
             checkstyleFromXcbeautify < "$XC_LOG_FILE" > "$CI_CHECK_STYLE_FILE"
@@ -59,5 +57,4 @@ if [[ -n $XC_LOG_FILE ]]; then
 else
     xcCommand build
     logInfo "[Xcode] Building completed."
-    # logWarning "CI_XCBEATIFY_USED=$CI_XCBEATIFY_USED"
 fi
