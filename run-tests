@@ -11,3 +11,29 @@ for testFile in tests/test_*.sh; do
     echo "\n[Test] $(basename "$testFile")"
     shunit2 "$testFile"
 done
+
+. "$B9_ROOT/lib/xccommand.sh"
+
+rm -rf build
+
+logSection "Test project no warning"
+xcCommandParametersRestAll
+
+export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
+export XC_SCHEME="NoWarning"
+export XC_DISABLE_CODE_SIGNING=1
+export XC_DESTINATION=mac
+export XC_CLEAN=1
+./build-ios
+
+logSection "Test workspace has warning"
+xcCommandParametersRestAll
+
+export XC_WORKSPACE="tests/samples/Tests.xcworkspace"
+export XC_SCHEME="HasWarning"
+export XC_DISABLE_CODE_SIGNING=1
+export XC_DESTINATION=mac
+export XC_CLEAN=1
+./build-ios
+
+logInfo "[Done]"
