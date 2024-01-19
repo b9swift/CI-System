@@ -34,23 +34,22 @@ prepeareResultFile() {
 # Usage：
 # xcodebuild ... 2>&1 | showProgress
 showProgress() {
-    local last_print_time=$(date +%s)
+    local last_print_time=0
     local -i dots=0
     while read line; do
         local current_time=$(date +%s)
         if [[ $((current_time - last_print_time)) -lt 1 ]]; then
             continue
-        elif [[ $((current_time - last_print_time)) -ge 3 ]]; then
-            printf "\n"
-            dots=0
+        elif [[ $dots -gt 0 ]]; then
+            if [[ $dots -ge 80 || $((current_time - last_print_time)) -ge 3 ]]; then
+                printf "\n"
+                dots=0
+            fi
         fi
 
         last_print_time=$current_time
-
-        if [[ $dots -lt 80 ]]; then
-            printf "."
-            dots+=1
-        fi
+        printf "."
+        dots+=1
     done
 
     printf "\n"
