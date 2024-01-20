@@ -10,13 +10,16 @@ func printUsage() {
 Usage: \(name) <action>...
 
 Actions:
-  limitWarning: 限制告警数量在给的限量之下，如果数量超了，脚本退出状态码是告警的数量
-  printIssues: 打印所有告警
+  limitWarning: Limit the number of warnings to the given limit, if the number exceeds, the script exit status code is the number of warnings.
+  listIssues: Print all warnings.
+  summary: Statistical information of the results.
 
 Options:
   -h, --help: print this message
 """)
 }
+
+let logModule = "[Result]"
 
 struct XCArray<T: Codable>: Codable, CustomStringConvertible {
     let _values: [T]
@@ -95,8 +98,8 @@ struct DocumentLocation: Codable, CustomStringConvertible {
 }
 
 struct IssueSummary: Codable, CustomStringConvertible {
-    let documentLocationInCreatingWorkspace: DocumentLocation?
-    let issueType: XCString?
+    private let documentLocationInCreatingWorkspace: DocumentLocation?
+    private let issueType: XCString?
     let message: XCString?
 
     var description: String {
@@ -142,6 +145,8 @@ struct IssueSummary: Codable, CustomStringConvertible {
         let file = urlObj.path
         return Location(file: file, line: line, column: column)
     }
+
+    var type: String { issueType?.description ?? "Xcode" }
 }
 
 enum AppError: LocalizedError {
@@ -158,6 +163,7 @@ enum AppError: LocalizedError {
 class CheckResult {
     let records: ActionsInvocationRecord
     var ignoreWarningTypes = Set<String>()
+    var limitWarningCount = 0
 
     init(resultFile: String? = ProcessInfo.processInfo.environment["XC_RESULT_BUNDLE"]) throws {
         guard let file = resultFile else {
@@ -184,10 +190,16 @@ class CheckResult {
         records = try decoder.decode(ActionsInvocationRecord.self, from: data)
     }
 
-    func fillEnvironment() {
+    func fillEnvironment() throws {
         let env = ProcessInfo.processInfo.environment
-        if let types = env["CI_IGNORE_WARNING_TYPES"] {
+        if let types = env["CI_XCODE_WARNING_IGNORE_TYPES"] {
             ignoreWarningTypes = Set(types.split(separator: ",").map(String.init))
+        }
+        if let rawLimit = env["CI_XCODE_WARNING_LIMIT"] {
+            guard let limit = Int(rawLimit) else {
+                throw AppError.message("Invalid CI_XCODE_WARNING_LIMIT: \(rawLimit).")
+            }
+            limitWarningCount = limit
         }
     }
 
@@ -207,11 +219,14 @@ class CheckResult {
             case "limitWarning":
                 try limitWarning()
                 performedActions.insert(arg)
-            case "printIssues":
-                try printIssues()
+            case "listIssues":
+                try listIssues()
+                performedActions.insert(arg)
+            case "summary":
+                try summary()
                 performedActions.insert(arg)
             default:
-                throw AppError.message("Unknown action: \(arg)")
+                throw AppError.message("Unknown action: \(arg).")
             }
         }
         if performedActions.isEmpty {
@@ -219,29 +234,76 @@ class CheckResult {
         }
     }
 
-    func limitWarning() throws {
-        let warnings = records.issues?.warningSummaries ?? []
-        let limit = 10
-        if warnings.count > limit {
-            print("Warning count \(warnings.count) exceed limit \(limit)")
-            exit(Int32(warnings.count))
-        }
-        print("warning ok")
+    var filteredWarnings: [IssueSummary] {
+        records.issues?.warningSummaries.filter { !isIgnored(issue: $0) } ?? []
     }
 
-    func printIssues() throws {
+    func isIgnored(issue: IssueSummary) -> Bool {
+        ignoreWarningTypes.contains(issue.type)
+    }
+
+    func limitWarning() throws {
+        let warnings = filteredWarnings
+        if limitWarningCount == 0 {
+            print("\(logModule) Warning count \(warnings.count).")
+            return
+        }
+        if warnings.count > limitWarningCount {
+            print("\(logModule) Warning count \(warnings.count) exceed limit \(limitWarningCount).")
+            exit(Int32(warnings.count))
+        } else {
+            print("\(logModule) Warning count \(warnings.count)/\(limitWarningCount) [OK].")
+        }
+    }
+
+    func listIssues() throws {
         for item in records.issues?.warningSummaries ?? [] {
             print(item)
         }
+    }
+
+    func summary() throws {
+        let warnings = records.issues?.warningSummaries ?? []
+        var ignoredCount = 0
+        var maxKeyLength = 0
+        let map = warnings.reduce(into: [String: Int]()) {
+            if isIgnored(issue: $1) {
+                ignoredCount += 1
+                return
+            }
+            let key = $1.type
+            if key.count > maxKeyLength {
+                maxKeyLength = key.count
+            }
+            $0[key, default: 0] += 1
+        }
+
+        print("\(logModule) Warning summary:")
+
+        // sort by count
+        let sorted = map.sorted { $0.value > $1.value }
+        for item in sorted {
+            let paddedKey = item.key.padding(toLength: maxKeyLength, withPad: " ", startingAt: 0)
+            print("\(paddedKey): \(item.value)")
+        }
+        print("")
+
+        let paddedTotal = "Total".padding(toLength: maxKeyLength, withPad: " ", startingAt: 0)
+        print("\(paddedTotal): \(warnings.count - ignoredCount)")
+        if ignoredCount > 0 {
+            let paddedIgnored = "Ignored".padding(toLength: maxKeyLength, withPad: " ", startingAt: 0)
+            print("\(paddedIgnored): \(ignoredCount)")
+        }
+        print(String(repeating: "-", count: maxKeyLength + 5))
     }
 }
 
 do {
     let main = try CheckResult()
-    main.fillEnvironment()
+    try main.fillEnvironment()
     try main.excute()
 } catch {
-    print("[Result] \(error.localizedDescription)")
+    print("\(logModule) \(error.localizedDescription)")
     printUsage()
     exit(1)
 }
