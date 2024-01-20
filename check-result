@@ -12,7 +12,11 @@ print("[Path] Use result json file: \(resultJsonPath)")
 func printUsage() {
     let name = CommandLine.arguments.first ?? "check-result"
     print("""
-Usage: \(name) [options]
+Usage: \(name) <action>...
+
+Actions:
+  limitWarning: 限制告警数量在给的限量之下，如果数量超了，脚本退出状态码是告警的数量
+  printIssues: 打印所有告警
 
 Options:
   -h, --help: print this message
@@ -145,5 +149,71 @@ struct IssueSummary: Codable, CustomStringConvertible {
     }
 }
 
-let records = try ActionsInvocationRecord(file: resultJsonPath)
-print(records.issues?.warningSummaries[7].location as Any)
+// let records = try ActionsInvocationRecord(file: resultJsonPath)
+// print(records.issues?.warningSummaries[7].location as Any)
+
+// // print warning types
+// var types = Set<String>()
+// for item in records.issues?.warningSummaries ?? [] {
+//     types.insert(item.issueType?.description ?? "")
+// }
+// print("Warning types: \(types)")
+
+func limitWarning() throws {
+    let records = try ActionsInvocationRecord(file: resultJsonPath)
+    let warnings = records.issues?.warningSummaries ?? []
+    let limit = 10
+    if warnings.count > limit {
+        print("Warning count \(warnings.count) exceed limit \(limit)")
+        exit(Int32(warnings.count))
+    }
+}
+
+class CheckResult {
+    func excute(arguments: [String] = CommandLine.arguments) throws {
+        var performedActions = Set<String>()
+        var this: String!
+        for arg in arguments {
+            if this == nil {
+                this = arg
+                continue
+            }
+            if performedActions.contains(arg) {
+                continue
+            }
+
+            switch arg {
+            case "limitWarning":
+                try limitWarning()
+                performedActions.insert(arg)
+            case "printIssues":
+                try printIssues()
+                performedActions.insert(arg)
+            default:
+                print("Unknown action: \(arg)")
+                printUsage()
+                exit(1)
+            }
+        }
+    }
+
+    func limitWarning() throws {
+        let records = try ActionsInvocationRecord(file: resultJsonPath)
+        let warnings = records.issues?.warningSummaries ?? []
+        let limit = 10
+        if warnings.count > limit {
+            print("Warning count \(warnings.count) exceed limit \(limit)")
+            exit(Int32(warnings.count))
+        }
+    }
+
+    func printIssues() throws {
+        let records = try ActionsInvocationRecord(file: resultJsonPath)
+        for item in records.issues?.warningSummaries ?? [] {
+            print(item)
+        }
+    }
+}
+
+let main = CheckResult()
+try main.excute()
