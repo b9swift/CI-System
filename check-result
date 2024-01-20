@@ -116,13 +116,42 @@ struct IssueSummary: Codable, CustomStringConvertible {
         return result
     }
 
+    var stringForPrint: String {
+        var parts = [String]()
+        if let location = location {
+            parts.append(location.pathForLog + ":")
+        }
+        if let message = message {
+            parts.append(message.description)
+        }
+        if let issueType = issueType {
+            parts.append("[\(issueType)]")
+        }
+        return parts.joined(separator: " ")
+    }
+
     struct Location: CustomStringConvertible {
         let file: String
-        let line: Int
-        let column: Int
+        let line: Int?
+        let column: Int?
 
         var description: String {
-            "\(file):\(line):\(column)"
+            "\(file):\(line ?? 0):\(column ?? 0)"
+        }
+
+        var pathForLog: String {
+            let content: String
+            if let line = line {
+                content = "\(file):\(line)"
+            } else {
+                content = file
+            }
+            let max = 54
+            if content.count > max {
+                return "...\(content.suffix(max - 3))"
+            } else {
+                return content
+            }
         }
     }
     var location: Location? {
@@ -130,14 +159,14 @@ struct IssueSummary: Codable, CustomStringConvertible {
         guard let urlObj = URL(string: url.description) else { return nil }
         var components = URLComponents()
         components.query = urlObj.fragment
-        var line = 0
-        var column = 0
+        var line: Int?
+        var column: Int?
         for item in components.queryItems ?? [] {
             switch item.name {
             case "StartingLineNumber":
-                line = Int(item.value ?? "") ?? 0
+                line = Int(item.value ?? "")
             case "StartingColumnNumber":
-                column = Int(item.value ?? "") ?? 0
+                column = Int(item.value ?? "")
             default:
                 break
             }
@@ -257,8 +286,14 @@ class CheckResult {
     }
 
     func listIssues() throws {
-        for item in records.issues?.warningSummaries ?? [] {
-            print(item)
+        let warnings = filteredWarnings
+        if warnings.isEmpty {
+            print("\(logModule) No warnings.")
+            return
+        }
+        print("\(logModule) There are \(warnings.count) warnings:")
+        for item in warnings {
+            print(item.stringForPrint)
         }
     }
 
