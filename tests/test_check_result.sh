@@ -8,10 +8,12 @@ fi
 
 unsetEnv() {
     unset CI_CHECK_STYLE_FILE
+    unset CI_XCODE_ERROR_LIMIT
     unset CI_XCODE_WARNING_IGNORE_TYPES
     unset CI_XCODE_WARNING_LIMIT
-    unset CI_XCODE_ERROR_LIMIT
+    unset XC_PROJECT
     unset XC_RESULT_BUNDLE
+    unset XC_WORKSPACE
 }
 
 oneTimeSetUp() {
@@ -29,8 +31,8 @@ testNoBundle() {
     output=$(./check-result) || {
         code=$?
     }
-    assertEquals $code 1
-    assertContains "$output" "XC_RESULT_BUNDLE"
+    assertEquals 1 $code
+    assertContains "XC_RESULT_BUNDLE" "$output"
 }
 
 testBundleNotExist() {
@@ -39,9 +41,9 @@ testBundleNotExist() {
     output=$(./check-result 2>&1) || {
         code=$?
     }
-    assertEquals $code 1
-    assertContains "$output" "not exist"
-    assertContains "$output" "Usage: check-result"
+    assertEquals 1 $code
+    assertContains "not exist" "$output"
+    assertContains "Usage: check-result" "$output"
 }
 
 testNoAction() {
@@ -50,8 +52,8 @@ testNoAction() {
     output=$(./check-result 2>&1) || {
         code=$?
     }
-    assertEquals $code 0
-    assertContains "$output" "Usage: check-result"
+    assertEquals 0 $code
+    assertContains "Usage: check-result" "$output"
 }
 
 testCheckStyleWithNoEnv() {
@@ -60,8 +62,8 @@ testCheckStyleWithNoEnv() {
     output=$(./check-result checkstyle 2>&1) || {
         code=$?
     }
-    assertEquals $code 1
-    assertContains "$output" "CI_CHECK_STYLE_FILE is required"
+    assertEquals 1 $code
+    assertContains "CI_CHECK_STYLE_FILE is required" "$output"
 }
 
 testCheckStyleWithNoIssues() {
@@ -71,7 +73,7 @@ testCheckStyleWithNoIssues() {
     output=$(./check-result checkstyle 2>&1) || {
         code=$?
     }
-    assertEquals $code 0
+    assertEquals 0 $code
     echo "$output"
     if [[ ! -f "$CI_CHECK_STYLE_FILE" ]]; then
         fail "Checkstyle file should be generated."
@@ -90,7 +92,7 @@ testCheckStyleWithIssues() {
     output=$(./check-result checkstyle 2>&1) || {
         code=$?
     }
-    assertEquals $code 0
+    assertEquals 0 $code
     if [[ ! -f "$CI_CHECK_STYLE_FILE" ]]; then
         fail "Checkstyle file should be generated."
     fi
@@ -107,9 +109,9 @@ testCommandsWithAllRight() {
     output=$(./check-result listIssues summary) || {
         code=$?
     }
-    assertEquals $code 0
-    # assertContains "$output" "No issues found"
-    echo "$output"
+    assertEquals 0 $code
+    assertContains "$output" "No issues"
+    # echo "$output"
 }
 
 testCommandsWithHasWarningAndError() {
@@ -118,9 +120,9 @@ testCommandsWithHasWarningAndError() {
     output=$(./check-result listIssues summary) || {
         code=$?
     }
-    assertEquals $code 0
-    # assertContains "$output" "Found 2 issues"
-    # assertContains "$output" "Found 1 error"
-    # assertContains "$output" "Found 1 warning"
+    assertEquals 0 $code
+    assertContains "$output" "There are: 2 error(s), 2 warning(s)"
+    assertContains "$output" "Issues Summary"
+    assertContains "$output" ": 4"
     echo "$output"
 }

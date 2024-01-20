@@ -24,7 +24,7 @@ func logInfo(_ value: CustomStringConvertible) {
     print("[Result] \(value)")
 }
 
-struct XCArray<T: Codable>: Codable, CustomStringConvertible {
+struct XCArray<T: Decodable>: Decodable, CustomStringConvertible {
     let _values: [T]
 
     var description: String {
@@ -33,12 +33,12 @@ struct XCArray<T: Codable>: Codable, CustomStringConvertible {
     var count: Int { _values.count }
 }
 
-struct XCString: Codable, CustomStringConvertible {
+struct XCString: Decodable, CustomStringConvertible {
     let _value: String
     var description: String { _value }
 }
 
-struct ActionsInvocationRecord: Codable, CustomStringConvertible {
+struct ActionsInvocationRecord: Decodable, CustomStringConvertible {
     let issues: ResultIssueSummaries?
 
     var description: String {
@@ -54,31 +54,31 @@ struct ActionsInvocationRecord: Codable, CustomStringConvertible {
     }
 }
 
-struct ResultIssueSummaries: Codable, CustomStringConvertible {
-    var warningSummaries = [IssueSummary]()
+struct ResultIssueSummaries: Decodable, CustomStringConvertible {
+    var warningSummaries: [IssueSummary]?
+    var errorSummaries: [IssueSummary]?
 
     var description: String {
-        return (warningSummaries as NSArray).description
+        return (warningSummaries as? NSArray)?.description ?? "[]"
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let items = try? container.decode(XCArray<IssueSummary>.self, forKey: .warningSummaries)
-        warningSummaries = items?._values ?? []
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        let xcArray = XCArray(_values: warningSummaries)
-        try container.encode(xcArray, forKey: .warningSummaries)
+        if container.contains(.warningSummaries) {
+            warningSummaries = try container.decode(XCArray<IssueSummary>.self, forKey: .warningSummaries)._values
+        }
+        if container.contains(.errorSummaries) {
+            errorSummaries = try container.decode(XCArray<IssueSummary>.self, forKey: .errorSummaries)._values
+        }
     }
 
     enum CodingKeys: String, CodingKey {
         case warningSummaries
+        case errorSummaries
     }
 }
 
-struct DocumentLocation: Codable, CustomStringConvertible {
+struct DocumentLocation: Decodable, CustomStringConvertible {
     let concreteTypeName: XCString?
     let url: XCString
 
@@ -88,10 +88,11 @@ struct DocumentLocation: Codable, CustomStringConvertible {
             result += "\(urlObj.lastPathComponent): "
         }
         if let type = concreteTypeName {
-            assert([
-                "DVTMemberDocumentLocation",
-                "DVTTextDocumentLocation",
-            ].contains(type.description),
+            assert(
+                [
+                    "DVTMemberDocumentLocation",
+                    "DVTTextDocumentLocation",
+                ].contains(type.description),
                 "new type found: \(type.description)"
             )
             result += " \(type.description)"
@@ -100,10 +101,11 @@ struct DocumentLocation: Codable, CustomStringConvertible {
     }
 }
 
-struct IssueSummary: Codable, CustomStringConvertible {
+class IssueSummary: Decodable, CustomStringConvertible {
     private let documentLocationInCreatingWorkspace: DocumentLocation?
     private let issueType: XCString?
     let message: XCString?
+    var isError: Bool? = true
 
     var description: String {
         var result = ""
@@ -119,47 +121,20 @@ struct IssueSummary: Codable, CustomStringConvertible {
         return result
     }
 
-    var stringForPrint: String {
-        var parts = [String]()
-        if let location = location {
-            parts.append(location.pathForLog + ":")
-        }
-        if let message = message {
-            parts.append(message.description)
-        }
-        if let issueType = issueType {
-            parts.append("[\(issueType)]")
-        }
-        return parts.joined(separator: " ")
-    }
-
-    struct Location: CustomStringConvertible {
+    struct Location {
         let file: String
         let line: Int?
         let column: Int?
 
-        var description: String {
-            "\(file):\(line ?? 0):\(column ?? 0)"
-        }
-
-        var pathForLog: String {
-            let content: String
-            if let line = line {
-                content = "\(file):\(line)"
-            } else {
-                content = file
-            }
-            let max = 54
-            if content.count > max {
-                return "...\(content.suffix(max - 3))"
-            } else {
-                return content
-            }
-        }
+        static var fallbackProjectPath: String? = {
+            ProcessInfo.processInfo.environment["XC_PROJECT"]
+            ?? ProcessInfo.processInfo.environment["XC_WORKSPACE"]
+        }()
     }
-    var location: Location? {
-        guard let url = documentLocationInCreatingWorkspace?.url else { return nil }
-        guard let urlObj = URL(string: url.description) else { return nil }
+    lazy var location: Location? = {
+        guard let url = documentLocationInCreatingWorkspace?.url.description
+                ?? Location.fallbackProjectPath else { return nil }
+        guard let urlObj = URL(string: url) else { return nil }
         var components = URLComponents()
         components.query = urlObj.fragment
         var line: Int?
@@ -176,27 +151,16 @@ struct IssueSummary: Codable, CustomStringConvertible {
         }
         let file = urlObj.path
         return Location(file: file, line: line, column: column)
-    }
+    }()
 
     var type: String { issueType?.description ?? "Xcode" }
-
-    private var checkStyleSource: String {
-        if let source = issueType?.description.replacing(" ", with: "-") {
-            return "xcode.\(source)"
+    var typeKey: String {
+        if isError == true {
+            return "[x] \(type)"
         } else {
-            return "xcode"
+            return "[!] \(type)"
         }
-     }
-     var checkstyleElement: XMLElement {
-        let loc = location
-        return XMLElement(name: "error", attributes: [
-            "line": "\(loc?.line ?? 0)",
-            "column": "\(loc?.column ?? 0)",
-            "severity": "warning",
-            "message": message?.description ?? "",
-            "source": checkStyleSource,
-        ])
-     }
+    }
 }
 
 enum AppError: LocalizedError {
@@ -214,6 +178,10 @@ class CheckResult {
     let records: ActionsInvocationRecord
     var ignoreWarningTypes = Set<String>()
     var limitWarningCount = 0
+    var issues: [IssueSummary]!
+    var ignoredIssues: [IssueSummary]!
+    var warningCount = 0
+    var errorCount = 0
 
     init(resultFile: String? = ProcessInfo.processInfo.environment["XC_RESULT_BUNDLE"]) throws {
         guard let file = resultFile else {
@@ -240,7 +208,7 @@ class CheckResult {
         records = try decoder.decode(ActionsInvocationRecord.self, from: data)
     }
 
-    func fillEnvironment() throws {
+    func prepare() throws {
         let env = ProcessInfo.processInfo.environment
         if let types = env["CI_XCODE_WARNING_IGNORE_TYPES"] {
             ignoreWarningTypes = Set(types.split(separator: ",").map(String.init))
@@ -251,6 +219,23 @@ class CheckResult {
             }
             limitWarningCount = limit
         }
+        issues = []
+        ignoredIssues = []
+        for item in records.issues?.warningSummaries ?? [] {
+            if ignoreWarningTypes.contains(item.type) {
+                ignoredIssues.append(item)
+            } else {
+                item.isError = false
+                issues.append(item)
+                warningCount += 1
+            }
+        }
+        for item in records.issues?.errorSummaries ?? [] {
+            item.isError = true
+            issues.append(item)
+            errorCount += 1
+        }
+        issues.sort { $0.location?.file ?? "" < $1.location?.file ?? "" }
     }
 
     func excute(arguments: [String] = CommandLine.arguments) throws {
@@ -261,9 +246,9 @@ class CheckResult {
             }
             switch arg {
             case "checkstyle",
-                 "limitWarning",
-                 "listIssues",
-                 "summary":
+                "limitWarning",
+                "listIssues",
+                "summary":
                 actions.append(arg)
             default:
                 throw AppError.message("Unknown action: \(arg).")
@@ -273,6 +258,7 @@ class CheckResult {
             printUsage()
             return
         }
+        try prepare()
         for action in actions {
             switch action {
             case "checkstyle":
@@ -290,13 +276,152 @@ class CheckResult {
     }
 
     var filteredWarnings: [IssueSummary] {
-        records.issues?.warningSummaries.filter { !isIgnored(issue: $0) } ?? []
+        issues.filter { $0.isError == false }
     }
 
     func isIgnored(issue: IssueSummary) -> Bool {
         ignoreWarningTypes.contains(issue.type)
     }
 
+    func limitWarning() throws {
+        let warnings = filteredWarnings
+        if limitWarningCount == 0 {
+            logInfo("Warning count \(warnings.count).")
+            return
+        }
+        if warnings.count > limitWarningCount {
+            logInfo("Warning count \(warnings.count) exceed limit \(limitWarningCount).")
+            exit(Int32(warnings.count))
+        } else {
+            logInfo("Warning count \(warnings.count)/\(limitWarningCount) [OK].")
+        }
+    }
+
+    func summary() throws {
+        var maxKeyLength = 0
+        let map = issues.reduce(into: [String: Int]()) {
+            let key = $1.typeKey
+            if key.count > maxKeyLength {
+                maxKeyLength = key.count
+            }
+            $0[key, default: 0] += 1
+        }
+
+        if map.isEmpty {
+            printNoIssues()
+            return
+        }
+        logInfo("Issues Summary:")
+        maxKeyLength += 1
+
+        // sort by count
+        let sorted = map.sorted { $0.value > $1.value }
+        for item in sorted {
+            let paddedKey = item.key.padding(toLength: maxKeyLength, withPad: " ", startingAt: 0)
+            print("\(paddedKey): \(item.value)")
+        }
+
+        let paddedTotal = "Total".padding(toLength: maxKeyLength, withPad: " ", startingAt: 0)
+        print("\n\(paddedTotal): \(issues.count)")
+        if ignoredIssues.count > 0 {
+            let paddedIgnored = "Ignored".padding(toLength: maxKeyLength, withPad: " ", startingAt: 0)
+            print("\(paddedIgnored): \(ignoredIssues.count)")
+        }
+        print(String(repeating: "-", count: maxKeyLength + 5))
+    }
+
+    func printNoIssues() {
+        if _hasIssuesPrinted {
+            return
+        }
+        logInfo("No issues.")
+        _hasIssuesPrinted = true
+    }
+    private var _hasIssuesPrinted = false
+}
+
+// MARK: - List
+
+extension IssueSummary {
+    var stringForPrint: String {
+        var parts = [String]()
+        if isError == true {
+            parts.append("[x]")
+        }
+        if isError == false {
+            parts.append("[!]")
+        }
+        if let location = location {
+            parts.append(location.pathForLog + ":")
+        }
+        if let message = message {
+            parts.append(message.description)
+        }
+        if let issueType = issueType {
+            parts.append("[\(issueType)]")
+        }
+        return parts.joined(separator: " ")
+    }
+}
+
+extension IssueSummary.Location {
+    var pathForLog: String {
+        let content: String
+        if let line = line {
+            content = "\(file):\(line)"
+        } else {
+            content = file
+        }
+        let max = 54
+        if content.count > max {
+            return "...\(content.suffix(max - 3))"
+        } else {
+            return content
+        }
+    }
+}
+
+extension CheckResult {
+    func listIssues() throws {
+        if issues.isEmpty {
+            printNoIssues()
+            return
+        }
+        var header = "There are: \(errorCount) error(s), \(warningCount) warning(s)"
+        if ignoredIssues.count > 0 {
+            header += ", \(ignoredIssues.count) ignored"
+        }
+        header += ":"
+        logInfo(header)
+        for item in issues {
+            print(item.stringForPrint)
+        }
+    }
+}
+
+// MARK: - Checkstyle
+
+extension IssueSummary {
+    private var checkStyleSource: String {
+        if let source = issueType?.description.replacingOccurrences(of: " ", with: "-") {
+            return "xcode.\(source)"
+        } else {
+            return "xcode"
+        }
+    }
+    var checkstyleElement: XMLElement {
+        let loc = location
+        return XMLElement(name: "error", attributes: [
+            "line": "\(loc?.line ?? 0)",
+            "column": "\(loc?.column ?? 0)",
+            "severity": isError == true ? "error" : "warning",
+            "message": message?.description ?? "",
+            "source": checkStyleSource,
+        ])
+    }
+}
+
+extension CheckResult {
     func checkstyle() throws {
         let file = ProcessInfo.processInfo.environment["CI_CHECK_STYLE_FILE"]
         guard let path = file else {
@@ -318,79 +443,27 @@ class CheckResult {
             }
             lastFileElement?.addChild(item.checkstyleElement)
         }
+        for item in records.issues?.errorSummaries ?? [] {
+            guard let file = item.location?.file else {
+                continue
+            }
+            if file != lastFile {
+                lastFile = file
+                let fileElement = XMLElement(name: "file", attributes: ["name": file])
+                root.addChild(fileElement)
+                lastFileElement = fileElement
+            }
+            lastFileElement?.addChild(item.checkstyleElement)
+        }
 
         let xml = XMLDocument()
         xml.version = "1.0"
         xml.characterEncoding = "utf-8"
         xml.setRootElement(root)
         let data = xml.xmlData(options: [.nodePrettyPrint, .nodeCompactEmptyElement])
-        try data.write(to: URL(fileURLWithPath: path))
-    }
-
-    func limitWarning() throws {
-        let warnings = filteredWarnings
-        if limitWarningCount == 0 {
-            logInfo("Warning count \(warnings.count).")
-            return
-        }
-        if warnings.count > limitWarningCount {
-            logInfo("Warning count \(warnings.count) exceed limit \(limitWarningCount).")
-            exit(Int32(warnings.count))
-        } else {
-            logInfo("Warning count \(warnings.count)/\(limitWarningCount) [OK].")
-        }
-    }
-
-    func listIssues() throws {
-        let warnings = filteredWarnings
-        if warnings.isEmpty {
-            logInfo("No warnings.")
-            return
-        }
-        logInfo("There are \(warnings.count) warnings:")
-        for item in warnings {
-            print(item.stringForPrint)
-        }
-    }
-
-    func summary() throws {
-        let warnings = records.issues?.warningSummaries ?? []
-        var ignoredCount = 0
-        var maxKeyLength = 0
-        let map = warnings.reduce(into: [String: Int]()) {
-            if isIgnored(issue: $1) {
-                ignoredCount += 1
-                return
-            }
-            let key = $1.type
-            if key.count > maxKeyLength {
-                maxKeyLength = key.count
-            }
-            $0[key, default: 0] += 1
-        }
-
-        if map.isEmpty {
-            logInfo("No warnings.")
-            return
-        }
-        logInfo("Warning summary:")
-        maxKeyLength += 1
-
-        // sort by count
-        let sorted = map.sorted { $0.value > $1.value }
-        for item in sorted {
-            let paddedKey = item.key.padding(toLength: maxKeyLength, withPad: " ", startingAt: 0)
-            print("\(paddedKey): \(item.value)")
-        }
-        print("")
-
-        let paddedTotal = "Total".padding(toLength: maxKeyLength, withPad: " ", startingAt: 0)
-        print("\(paddedTotal): \(warnings.count - ignoredCount)")
-        if ignoredCount > 0 {
-            let paddedIgnored = "Ignored".padding(toLength: maxKeyLength, withPad: " ", startingAt: 0)
-            print("\(paddedIgnored): \(ignoredCount)")
-        }
-        print(String(repeating: "-", count: maxKeyLength + 5))
+        let destination = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: destination)
     }
 }
 
@@ -401,9 +474,10 @@ extension XMLElement {
     }
 }
 
+// MARK: -
+
 do {
     let main = try CheckResult()
-    try main.fillEnvironment()
     try main.excute()
 } catch {
     logInfo(error.localizedDescription)
