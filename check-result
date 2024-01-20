@@ -1,0 +1,149 @@
+#!/usr/bin/env swift
+// https://github.com/b9swift/CI-System
+// Copyright (c) 2024 BB9z, MIT License
+
+import Foundation
+
+// get enviroment variables: CI_XC_RESULT_JSON
+let env = ProcessInfo.processInfo.environment
+let resultJsonPath = env["CI_XC_RESULT_JSON"] ?? "build/xc-result.json"
+print("[Path] Use result json file: \(resultJsonPath)")
+
+func printUsage() {
+    let name = CommandLine.arguments.first ?? "check-result"
+    print("""
+Usage: \(name) [options]
+
+Options:
+  -h, --help: print this message
+""")
+}
+
+struct XCArray<T: Codable>: Codable, CustomStringConvertible {
+    let _values: [T]
+
+    var description: String {
+        (_values as NSArray).description
+    }
+    var count: Int { _values.count }
+}
+
+struct XCString: Codable, CustomStringConvertible {
+    let _value: String
+    var description: String { _value }
+}
+
+struct ActionsInvocationRecord: Codable, CustomStringConvertible {
+    let issues: ResultIssueSummaries?
+
+    var description: String {
+        return issues?.description ?? "No issues"
+    }
+
+    init(file: String) throws {
+        let url = URL(fileURLWithPath: file)
+        let data = try Data(contentsOf: url)
+        let decoder = JSONDecoder()
+        decoder.allowsJSON5 = true
+        self = try decoder.decode(ActionsInvocationRecord.self, from: data)
+    }
+}
+
+struct ResultIssueSummaries: Codable, CustomStringConvertible {
+    var warningSummaries = [IssueSummary]()
+
+    var description: String {
+        return (warningSummaries as NSArray).description
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let items = try? container.decode(XCArray<IssueSummary>.self, forKey: .warningSummaries)
+        warningSummaries = items?._values ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        let xcArray = XCArray(_values: warningSummaries)
+        try container.encode(xcArray, forKey: .warningSummaries)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case warningSummaries
+    }
+}
+
+struct DocumentLocation: Codable, CustomStringConvertible {
+    let concreteTypeName: XCString?
+    let url: XCString
+
+    var description: String {
+        var result = ""
+        if let urlObj = URL(string: url.description) {
+            result += "\(urlObj.lastPathComponent): "
+        }
+        if let type = concreteTypeName {
+            assert([
+                "DVTMemberDocumentLocation",
+                "DVTTextDocumentLocation",
+            ].contains(type.description),
+                "new type found: \(type.description)"
+            )
+            result += " \(type.description)"
+        }
+        return result
+    }
+}
+
+struct IssueSummary: Codable, CustomStringConvertible {
+    let documentLocationInCreatingWorkspace: DocumentLocation?
+    let issueType: XCString?
+    let message: XCString?
+
+    var description: String {
+        var result = ""
+        if let location = documentLocationInCreatingWorkspace {
+            result += "\(location.description): "
+        }
+        if let message = message {
+            result += "\(message)"
+        }
+        if let issueType = issueType {
+            result += "[\(issueType)]"
+        }
+        return result
+    }
+
+    struct Location: CustomStringConvertible {
+        let file: String
+        let line: Int
+        let column: Int
+
+        var description: String {
+            "\(file):\(line):\(column)"
+        }
+    }
+    var location: Location? {
+        guard let url = documentLocationInCreatingWorkspace?.url else { return nil }
+        guard let urlObj = URL(string: url.description) else { return nil }
+        var components = URLComponents()
+        components.query = urlObj.fragment
+        var line = 0
+        var column = 0
+        for item in components.queryItems ?? [] {
+            switch item.name {
+            case "StartingLineNumber":
+                line = Int(item.value ?? "") ?? 0
+            case "StartingColumnNumber":
+                column = Int(item.value ?? "") ?? 0
+            default:
+                break
+            }
+        }
+        let file = urlObj.path
+        return Location(file: file, line: line, column: column)
+    }
+}
+
+let records = try ActionsInvocationRecord(file: resultJsonPath)
+print(records.issues?.warningSummaries[7].location as Any)
