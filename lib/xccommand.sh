@@ -38,20 +38,8 @@ export _XC_COMMANDS=()
 # Usage:
 # xcCommand <action>
 # 
-# Other parameters are passed through environment variables, supported variables are:
-#
-# - XC_WORKSPACE, workspace file path
-# - XC_PROJECT, project file path
-# - XC_SCHEME, scheme name
-# - XC_CLEAN, set to true to clean before executing the action
-# - XC_CONFIGURATION, build configuration, eg. Debug/Release/...
-# - XC_DESTINATION, target device, value can be the full parameter or abbreviations like mac, ios, watchos, tvos
-# - XC_DISABLE_CODE_SIGNING, set to true to disable code signing
-# - XC_RESULT_BUNDLE, path to xcresult bundle
-# - XC_REDIRECT_STDERR, wheather redirect stderr to stdout
-# - XC_LOG_FILE, path to log file
-# - XC_BEAUTIFY, set to true to format output using xcbeautify
-#
+# Other parameters are passed through environment variables, see:
+# https://github.com/b9swift/CI-System#xccommand
 xcCommand() {
     if [[ -z "${1:-}" ]]; then
         logError "xcCommand: no action specified"

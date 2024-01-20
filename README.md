@@ -1,5 +1,7 @@
 # B9CI - CI Toolkit for Apple Development
 
+[![CI](https://github.com/b9swift/CI-System/actions/workflows/ci.yml/badge.svg)](https://github.com/b9swift/CI-System/actions/workflows/ci.yml)
+
 ## Tools
 
 ### build-ios
@@ -39,6 +41,8 @@ Environment variables:
 
 ### xcCommand
 
+<!-- Link here: xccommand.sh -->
+
 Inputs:
 
 - `XC_WORKSPACE`, workspace file path.
@@ -52,10 +56,6 @@ Inputs:
 - `XC_RESULT_BUNDLE`, path to xcresult bundle.
 - `XC_LOG_FILE`, path to log file.
 - `XC_BEAUTIFY`, set to `true` to format output using xcbeautify.
-
-Outputs:
-
-- `CI_XCBEATIFY_USED`, whether xcbeautify is actually used.
 
 ## Run Tests
 
