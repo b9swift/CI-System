@@ -211,9 +211,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				11930B952B5A54EB001A4419 /* NoWarning */,
-				11930BA22B5A55C9001A4419 /* HasWarning */,
 				D58D56342B5BED84009CE60D /* HasError */,
+				11930BA22B5A55C9001A4419 /* HasWarning */,
+				11930B952B5A54EB001A4419 /* NoWarning */,
 			);
 		};
 /* End PBXProject section */

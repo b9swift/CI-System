@@ -55,4 +55,35 @@ if [[ ! -d "$XC_RESULT_BUNDLE" ]]; then
     exit 1
 fi
 
+logSection "Test workspace has error"
+xcCommandParametersRestAll
+rm -rf ".test"
+
+hasFailed=0
+export XC_WORKSPACE="tests/samples/Tests.xcworkspace"
+export XC_SCHEME="HasError"
+export XC_DISABLE_CODE_SIGNING=1
+export XC_DESTINATION=mac
+export XC_CLEAN=1
+export XC_BEAUTIFY=0
+export XC_RESULT_BUNDLE=".test/t3.xcresult"
+export CI_CHECK_STYLE_FILE=".test/t3.xml"
+./build-ios || {
+    hasFailed=1
+}
+
+if [[ $hasFailed != 1 ]]; then
+    logError "Build should failed."
+    exit 1
+fi
+
+if [[ ! -f "$CI_CHECK_STYLE_FILE" ]]; then
+    logError "Checkstyle file should be generated."
+    exit 1
+fi
+if [[ ! -d "$XC_RESULT_BUNDLE" ]]; then
+    logError "Result bundle file should be generated."
+    exit 1
+fi
+
 logInfo "[Done]"
