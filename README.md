@@ -11,6 +11,12 @@ Environment variables:
 * Supports [xcCommand](#xcCommand) variables.
 * `CI_CHECK_STYLE_FILE`: Export checkstyle.xml to this path.
 
+### check-result
+
+Environment variables:
+
+* `CI_IGNORE_WARNING_TYPES`: Ignore warning types, separated by comma. eg. `"No-usage,Deprecations,Documentation Issue"`
+
 ### fetch-mr
 
 Fetch merge request.

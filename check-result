@@ -4,11 +4,6 @@
 
 import Foundation
 
-// get enviroment variables: CI_XC_RESULT_JSON
-let env = ProcessInfo.processInfo.environment
-let resultJsonPath = env["CI_XC_RESULT_JSON"] ?? "build/xc-result.json"
-print("[Path] Use result json file: \(resultJsonPath)")
-
 func printUsage() {
     let name = CommandLine.arguments.first ?? "check-result"
     print("""
@@ -149,27 +144,53 @@ struct IssueSummary: Codable, CustomStringConvertible {
     }
 }
 
-// let records = try ActionsInvocationRecord(file: resultJsonPath)
-// print(records.issues?.warningSummaries[7].location as Any)
+enum AppError: LocalizedError {
+    case message(_ message: String)
 
-// // print warning types
-// var types = Set<String>()
-// for item in records.issues?.warningSummaries ?? [] {
-//     types.insert(item.issueType?.description ?? "")
-// }
-// print("Warning types: \(types)")
-
-func limitWarning() throws {
-    let records = try ActionsInvocationRecord(file: resultJsonPath)
-    let warnings = records.issues?.warningSummaries ?? []
-    let limit = 10
-    if warnings.count > limit {
-        print("Warning count \(warnings.count) exceed limit \(limit)")
-        exit(Int32(warnings.count))
+    public var errorDescription: String? {
+        switch self {
+        case let .message(text):
+            return text
+        }
     }
 }
 
 class CheckResult {
+    let records: ActionsInvocationRecord
+    var ignoreWarningTypes = Set<String>()
+
+    init(resultFile: String? = ProcessInfo.processInfo.environment["XC_RESULT_BUNDLE"]) throws {
+        guard let file = resultFile else {
+            throw AppError.message("You must set XC_RESULT_BUNDLE to use this command.")
+        }
+        let tempFile = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("\(UUID().uuidString).json")
+        FileManager.default.createFile(atPath: tempFile.path, contents: nil)
+        defer {
+            try? FileManager.default.removeItem(at: tempFile)
+        }
+        let fileHandle = try FileHandle(forWritingTo: tempFile)
+
+        let task = Process()
+        task.launchPath = "/usr/bin/xcrun"
+        task.arguments = ["xcresulttool", "get", "--format", "json", "--path", file]
+        task.standardOutput = fileHandle
+        task.launch()
+        task.waitUntilExit()
+        try? fileHandle.close()
+
+        let data = try Data(contentsOf: tempFile)
+        let decoder = JSONDecoder()
+        decoder.allowsJSON5 = true
+        records = try decoder.decode(ActionsInvocationRecord.self, from: data)
+    }
+
+    func fillEnvironment() {
+        let env = ProcessInfo.processInfo.environment
+        if let types = env["CI_IGNORE_WARNING_TYPES"] {
+            ignoreWarningTypes = Set(types.split(separator: ",").map(String.init))
+        }
+    }
+
     func excute(arguments: [String] = CommandLine.arguments) throws {
         var performedActions = Set<String>()
         var this: String!
@@ -190,30 +211,37 @@ class CheckResult {
                 try printIssues()
                 performedActions.insert(arg)
             default:
-                print("Unknown action: \(arg)")
-                printUsage()
-                exit(1)
+                throw AppError.message("Unknown action: \(arg)")
             }
+        }
+        if performedActions.isEmpty {
+            printUsage()
         }
     }
 
     func limitWarning() throws {
-        let records = try ActionsInvocationRecord(file: resultJsonPath)
         let warnings = records.issues?.warningSummaries ?? []
         let limit = 10
         if warnings.count > limit {
             print("Warning count \(warnings.count) exceed limit \(limit)")
             exit(Int32(warnings.count))
         }
+        print("warning ok")
     }
 
     func printIssues() throws {
-        let records = try ActionsInvocationRecord(file: resultJsonPath)
         for item in records.issues?.warningSummaries ?? [] {
             print(item)
         }
     }
 }
 
-let main = CheckResult()
-try main.excute()
+do {
+    let main = try CheckResult()
+    main.fillEnvironment()
+    try main.excute()
+} catch {
+    print("[Result] \(error.localizedDescription)")
+    printUsage()
+    exit(1)
+}
