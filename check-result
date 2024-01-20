@@ -19,7 +19,9 @@ Options:
 """)
 }
 
-let logModule = "[Result]"
+func logInfo(_ value: CustomStringConvertible) {
+    print("[Result] \(value)")
+}
 
 struct XCArray<T: Codable>: Codable, CustomStringConvertible {
     let _values: [T]
@@ -274,24 +276,24 @@ class CheckResult {
     func limitWarning() throws {
         let warnings = filteredWarnings
         if limitWarningCount == 0 {
-            print("\(logModule) Warning count \(warnings.count).")
+            logInfo("Warning count \(warnings.count).")
             return
         }
         if warnings.count > limitWarningCount {
-            print("\(logModule) Warning count \(warnings.count) exceed limit \(limitWarningCount).")
+            logInfo("Warning count \(warnings.count) exceed limit \(limitWarningCount).")
             exit(Int32(warnings.count))
         } else {
-            print("\(logModule) Warning count \(warnings.count)/\(limitWarningCount) [OK].")
+            logInfo("Warning count \(warnings.count)/\(limitWarningCount) [OK].")
         }
     }
 
     func listIssues() throws {
         let warnings = filteredWarnings
         if warnings.isEmpty {
-            print("\(logModule) No warnings.")
+            logInfo("No warnings.")
             return
         }
-        print("\(logModule) There are \(warnings.count) warnings:")
+        logInfo("There are \(warnings.count) warnings:")
         for item in warnings {
             print(item.stringForPrint)
         }
@@ -313,7 +315,7 @@ class CheckResult {
             $0[key, default: 0] += 1
         }
 
-        print("\(logModule) Warning summary:")
+        logInfo("Warning summary:")
 
         // sort by count
         let sorted = map.sorted { $0.value > $1.value }
@@ -338,7 +340,7 @@ do {
     try main.fillEnvironment()
     try main.excute()
 } catch {
-    print("\(logModule) \(error.localizedDescription)")
+    logInfo(error.localizedDescription)
     printUsage()
     exit(1)
 }
