@@ -10,6 +10,7 @@ func printUsage() {
 Usage: \(name) <action>...
 
 Actions:
+  checkstyle: Generate checkstyle report to CI_CHECK_STYLE_FILE.
   limitWarning: Limit the number of warnings to the given limit, if the number exceeds, the script exit status code is the number of warnings.
   listIssues: Print all warnings.
   summary: Statistical information of the results.
@@ -178,6 +179,24 @@ struct IssueSummary: Codable, CustomStringConvertible {
     }
 
     var type: String { issueType?.description ?? "Xcode" }
+
+    private var checkStyleSource: String {
+        if let source = issueType?.description.replacing(" ", with: "-") {
+            return "xcode.\(source)"
+        } else {
+            return "xcode"
+        }
+     }
+     var checkstyleElement: XMLElement {
+        let loc = location
+        return XMLElement(name: "error", attributes: [
+            "line": "\(loc?.line ?? 0)",
+            "column": "\(loc?.column ?? 0)",
+            "severity": "warning",
+            "message": message?.description ?? "",
+            "source": checkStyleSource,
+        ])
+     }
 }
 
 enum AppError: LocalizedError {
@@ -247,6 +266,9 @@ class CheckResult {
             }
 
             switch arg {
+            case "checkstyle":
+                try checkstyle()
+                performedActions.insert(arg)
             case "limitWarning":
                 try limitWarning()
                 performedActions.insert(arg)
@@ -271,6 +293,37 @@ class CheckResult {
 
     func isIgnored(issue: IssueSummary) -> Bool {
         ignoreWarningTypes.contains(issue.type)
+    }
+
+    func checkstyle() throws {
+        let file = ProcessInfo.processInfo.environment["CI_CHECK_STYLE_FILE"]
+        guard let path = file else {
+            logInfo("CI_CHECK_STYLE_FILE not set, skip.")
+            return
+        }
+
+        let root = XMLElement(name: "checkstyle", attributes: ["version": "4.3"])
+        var lastFile: String?
+        var lastFileElement: XMLElement?
+        for item in filteredWarnings {
+            guard let file = item.location?.file else {
+                continue
+            }
+            if file != lastFile {
+                lastFile = file
+                let fileElement = XMLElement(name: "file", attributes: ["name": file])
+                root.addChild(fileElement)
+                lastFileElement = fileElement
+            }
+            lastFileElement?.addChild(item.checkstyleElement)
+        }
+
+        let xml = XMLDocument()
+        xml.version = "1.0"
+        xml.characterEncoding = "utf-8"
+        xml.setRootElement(root)
+        let data = xml.xmlData(options: [.nodePrettyPrint, .nodeCompactEmptyElement])
+        try data.write(to: URL(fileURLWithPath: path))
     }
 
     func limitWarning() throws {
@@ -332,6 +385,13 @@ class CheckResult {
             print("\(paddedIgnored): \(ignoredCount)")
         }
         print(String(repeating: "-", count: maxKeyLength + 5))
+    }
+}
+
+extension XMLElement {
+    convenience init(name: String, attributes: [String: String]) {
+        self.init(name: name)
+        setAttributesWith(attributes)
     }
 }
 
