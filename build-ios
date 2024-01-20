@@ -4,7 +4,6 @@
 
 set -euo pipefail
 
-. "$(dirname $0)/lib/checkstyle.sh"
 . "$(dirname $0)/lib/xccommand.sh"
 
 # Default configuration
@@ -18,8 +17,8 @@ if [[ ! -v XC_REDIRECT_STDERR ]]; then
     XC_REDIRECT_STDERR=1
 fi
 
-if [[ ! -v XC_RESULT_BUNDLE ]]; then
-    XC_RESULT_BUNDLE="build/xc-build.xcresult"
+if [[ -z ${XC_RESULT_BUNDLE-} ]]; then
+    export XC_RESULT_BUNDLE="build/xc-build.xcresult"
     logInfo "[Path] Use default result bundle: $XC_RESULT_BUNDLE"
 fi
 if [[ ! -v XC_LOG_FILE ]]; then
@@ -30,9 +29,7 @@ elif [[ -n "${CI_CHECK_STYLE_FILE:-}" ]]; then
     logInfo "[Path] Use default log file: $XC_LOG_FILE"
 fi
 
-if [[ -n $XC_RESULT_BUNDLE ]]; then
-    prepeareResultFile "$XC_RESULT_BUNDLE"
-fi
+prepeareResultFile "$XC_RESULT_BUNDLE"
 
 logInfo "[Xcode] Building..."
 
@@ -46,15 +43,9 @@ if [[ -n $XC_LOG_FILE ]]; then
     }
     logInfo "[Xcode] Building completed."
     tail -n 4 "$XC_LOG_FILE"
-
-    if [[ -n "${CI_CHECK_STYLE_FILE:-}" ]]; then
-        if $CI_XCBEATIFY_USED; then
-            checkstyleFromXcbeautify < "$XC_LOG_FILE" > "$CI_CHECK_STYLE_FILE"
-        else
-            checkstyleFromXcodebuild < "$XC_LOG_FILE" > "$CI_CHECK_STYLE_FILE"
-        fi
-    fi
 else
     xcCommand build
     logInfo "[Xcode] Building completed."
 fi
+
+"$(dirname $0)/check-result" listIssues summary checkstyle

@@ -368,7 +368,12 @@ class CheckResult {
             $0[key, default: 0] += 1
         }
 
+        if map.isEmpty {
+            logInfo("No warnings.")
+            return
+        }
         logInfo("Warning summary:")
+        maxKeyLength += 1
 
         // sort by count
         let sorted = map.sorted { $0.value > $1.value }

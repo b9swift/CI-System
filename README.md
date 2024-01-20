@@ -15,7 +15,8 @@ Environment variables:
 
 Environment variables:
 
-* `CI_IGNORE_WARNING_TYPES`: Ignore warning types, separated by comma. eg. `"No-usage,Deprecations,Documentation Issue"`
+* `CI_XCODE_WARNING_IGNORE_TYPES`: Ignore warning types, separated by comma. eg. `"No-usage,Deprecations,Documentation Issue"`
+* `CI_XCODE_WARNING_LIMIT`: Limit warning count. eg. `100`
 
 ### fetch-mr
 
