@@ -33,8 +33,12 @@ fi
 
 logInfo "[Xcode] Building..."
 
+action="build"
+if [[ $(checkVar "${XC_ANALYZE:-}") == 0 ]]; then
+    action="analyze"
+fi
 code=0
-xcCommand build | showProgress || {
+xcCommand $action | showProgress || {
     code=$?
 }
 if [[ $code != 0 ]]; then
