@@ -38,13 +38,7 @@ struct XCString: Decodable, CustomStringConvertible {
     var description: String { _value }
 }
 
-struct ActionsInvocationRecord: Decodable, CustomStringConvertible {
-    let issues: ResultIssueSummaries?
-
-    var description: String {
-        return issues?.description ?? "No issues"
-    }
-
+struct ActionsInvocationRecord: Decodable {
     init(file: String) throws {
         let url = URL(fileURLWithPath: file)
         let data = try Data(contentsOf: url)
@@ -52,37 +46,30 @@ struct ActionsInvocationRecord: Decodable, CustomStringConvertible {
         decoder.allowsJSON5 = true
         self = try decoder.decode(ActionsInvocationRecord.self, from: data)
     }
-}
 
-struct ResultIssueSummaries: Decodable, CustomStringConvertible {
-    var warningSummaries: [IssueSummary]?
-    var errorSummaries: [IssueSummary]?
-    var analyzerWarningSummaries: [IssueSummary]?
+    private struct ResultIssueSummaries: Decodable {
+        var warningSummaries: XCArray<IssueSummary>?
+        var errorSummaries: XCArray<IssueSummary>?
+        var analyzerWarningSummaries: XCArray<IssueSummary>?
+    }
+    private let issues: ResultIssueSummaries?
 
-    var description: String {
-        return (warningSummaries as? NSArray)?.description ?? "[]"
+    var buildWarnings: [IssueSummary] {
+        let result = issues?.warningSummaries?._values ?? []
+        result.forEach { $0.kind = .warning }
+        return result
     }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        if container.contains(.warningSummaries) {
-            warningSummaries = try container.decode(XCArray<IssueSummary>.self, forKey: .warningSummaries)._values
-            warningSummaries?.forEach { $0.kind = .warning }
-        }
-        if container.contains(.errorSummaries) {
-            errorSummaries = try container.decode(XCArray<IssueSummary>.self, forKey: .errorSummaries)._values
-            errorSummaries?.forEach { $0.kind = .error }
-        }
-        if container.contains(.analyzerWarningSummaries) {
-            analyzerWarningSummaries = try container.decode(XCArray<IssueSummary>.self, forKey: .analyzerWarningSummaries)._values
-            analyzerWarningSummaries?.forEach { $0.kind = .analyzerWarning }
-        }
+    var buildErrors: [IssueSummary] {
+        let result = issues?.errorSummaries?._values ?? []
+        result.forEach { $0.kind = .error }
+        return result
     }
 
-    enum CodingKeys: String, CodingKey {
-        case warningSummaries
-        case errorSummaries
-        case analyzerWarningSummaries
+    var analyzerWarnings: [IssueSummary] {
+        let result = issues?.analyzerWarningSummaries?._values ?? []
+        result.forEach { $0.kind = .analyzerWarning }
+        return result
     }
 }
 
@@ -106,88 +93,6 @@ struct DocumentLocation: Decodable, CustomStringConvertible {
             result += " \(type.description)"
         }
         return result
-    }
-}
-
-class IssueSummary: Decodable, CustomStringConvertible {
-    private let documentLocationInCreatingWorkspace: DocumentLocation?
-    private let issueType: XCString?
-    let message: XCString?
-
-    enum CodingKeys: String, CodingKey {
-        case documentLocationInCreatingWorkspace
-        case issueType
-        case message
-    }
-
-    enum Kind {
-        case warning
-        case error
-        case analyzerWarning
-        var isError: Bool { self == .error }
-        var isWarning: Bool { self == .warning || self == .analyzerWarning }
-        var logSymbol: String {
-            switch self {
-            case .warning:
-                return "[!]"
-            case .error:
-                return "[x]"
-            case .analyzerWarning:
-                return "[A]"
-            }
-        }
-    }
-    var kind: Kind!
-
-    var description: String {
-        var result = ""
-        if let location = documentLocationInCreatingWorkspace {
-            result += "\(location.description): "
-        }
-        if let message = message {
-            result += "\(message)"
-        }
-        if let issueType = issueType {
-            result += "[\(issueType)]"
-        }
-        return result
-    }
-
-    struct Location {
-        let file: String
-        let line: Int?
-        let column: Int?
-
-        static var fallbackProjectPath: String? = {
-            ProcessInfo.processInfo.environment["XC_PROJECT"]
-            ?? ProcessInfo.processInfo.environment["XC_WORKSPACE"]
-        }()
-    }
-    lazy var location: Location? = {
-        guard let url = documentLocationInCreatingWorkspace?.url.description
-                ?? Location.fallbackProjectPath else { return nil }
-        guard let urlObj = URL(string: url) else { return nil }
-        var components = URLComponents()
-        components.query = urlObj.fragment
-        var line: Int?
-        var column: Int?
-        for item in components.queryItems ?? [] {
-            switch item.name {
-            case "StartingLineNumber":
-                line = Int(item.value ?? "")
-            case "StartingColumnNumber":
-                column = Int(item.value ?? "")
-            default:
-                break
-            }
-        }
-        let file = urlObj.path
-        return Location(file: file, line: line, column: column)
-    }()
-
-    var type: String { issueType?.description ?? "Xcode" }
-    var typeKey: String {
-        "\(kind.logSymbol) \(type)"
     }
 }
 
@@ -250,8 +155,8 @@ class CheckResult {
         issues = []
         ignoredIssues = []
         var warnings = [IssueSummary]()
-        warnings.append(contentsOf: records.issues?.warningSummaries ?? [])
-        warnings.append(contentsOf: records.issues?.analyzerWarningSummaries ?? [])
+        warnings.append(contentsOf: records.buildWarnings)
+        warnings.append(contentsOf: records.analyzerWarnings)
 
         for item in warnings {
             if ignoreWarningTypes.contains(item.type) {
@@ -261,7 +166,7 @@ class CheckResult {
                 warningCount += 1
             }
         }
-        for item in records.issues?.errorSummaries ?? [] {
+        for item in records.buildErrors {
             issues.append(item)
             errorCount += 1
         }
@@ -307,10 +212,6 @@ class CheckResult {
 
     var filteredWarnings: [IssueSummary] {
         issues.filter { $0.kind.isWarning }
-    }
-
-    func isIgnored(issue: IssueSummary) -> Bool {
-        ignoreWarningTypes.contains(issue.type)
     }
 
     func limitWarning() throws {
@@ -370,9 +271,104 @@ class CheckResult {
     private var _hasIssuesPrinted = false
 }
 
-// MARK: - List
+// MARK: - Issues
 
-extension IssueSummary {
+class IssueSummary: Decodable, CustomStringConvertible {
+    private let documentLocationInCreatingWorkspace: DocumentLocation?
+    private let issueType: XCString?
+    let message: XCString?
+
+    enum CodingKeys: String, CodingKey {
+        case documentLocationInCreatingWorkspace
+        case issueType
+        case message
+    }
+
+    enum Kind {
+        case warning
+        case error
+        case analyzerWarning
+        var isError: Bool { self == .error }
+        var isWarning: Bool { self == .warning || self == .analyzerWarning }
+        var logSymbol: String {
+            switch self {
+            case .warning:
+                return "[!]"
+            case .error:
+                return "[x]"
+            case .analyzerWarning:
+                return "[A]"
+            }
+        }
+    }
+    var kind: Kind!
+
+    var description: String {
+        var result = ""
+        if let location = documentLocationInCreatingWorkspace {
+            result += "\(location.description): "
+        }
+        if let message = message {
+            result += "\(message)"
+        }
+        if let issueType = issueType {
+            result += "[\(issueType)]"
+        }
+        return result
+    }
+
+    struct Location {
+        let file: String
+        let line: Int?
+        let column: Int?
+
+        static var fallbackProjectPath: String? = {
+            ProcessInfo.processInfo.environment["XC_PROJECT"]
+            ?? ProcessInfo.processInfo.environment["XC_WORKSPACE"]
+        }()
+
+        var pathForLog: String {
+            let content: String
+            if let line = line {
+                content = "\(file):\(line)"
+            } else {
+                content = file
+            }
+            let max = 54
+            if content.count > max {
+                return "...\(content.suffix(max - 3))"
+            } else {
+                return content
+            }
+        }
+    }
+    lazy var location: Location? = {
+        guard let url = documentLocationInCreatingWorkspace?.url.description
+                ?? Location.fallbackProjectPath else { return nil }
+        guard let urlObj = URL(string: url) else { return nil }
+        var components = URLComponents()
+        components.query = urlObj.fragment
+        var line: Int?
+        var column: Int?
+        for item in components.queryItems ?? [] {
+            switch item.name {
+            case "StartingLineNumber":
+                line = Int(item.value ?? "")
+            case "StartingColumnNumber":
+                column = Int(item.value ?? "")
+            default:
+                break
+            }
+        }
+        let file = urlObj.path
+        return Location(file: file, line: line, column: column)
+    }()
+
+    var type: String { issueType?.description ?? "Xcode" }
+    var typeKey: String {
+        "\(kind.logSymbol) \(type)"
+    }
+
     var stringForPrint: String {
         var parts = [String]()
         parts.append(kind.logSymbol)
@@ -386,23 +382,6 @@ extension IssueSummary {
             parts.append("[\(issueType)]")
         }
         return parts.joined(separator: " ")
-    }
-}
-
-extension IssueSummary.Location {
-    var pathForLog: String {
-        let content: String
-        if let line = line {
-            content = "\(file):\(line)"
-        } else {
-            content = file
-        }
-        let max = 54
-        if content.count > max {
-            return "...\(content.suffix(max - 3))"
-        } else {
-            return content
-        }
     }
 }
 
@@ -423,6 +402,8 @@ extension CheckResult {
         }
     }
 }
+
+// MARK: - Tests
 
 // MARK: - Checkstyle
 
@@ -456,19 +437,7 @@ extension CheckResult {
         let root = XMLElement(name: "checkstyle", attributes: ["version": "4.3"])
         var lastFile: String?
         var lastFileElement: XMLElement?
-        for item in filteredWarnings {
-            guard let file = item.location?.file else {
-                continue
-            }
-            if file != lastFile {
-                lastFile = file
-                let fileElement = XMLElement(name: "file", attributes: ["name": file])
-                root.addChild(fileElement)
-                lastFileElement = fileElement
-            }
-            lastFileElement?.addChild(item.checkstyleElement)
-        }
-        for item in records.issues?.errorSummaries ?? [] {
+        for item in issues {
             guard let file = item.location?.file else {
                 continue
             }
