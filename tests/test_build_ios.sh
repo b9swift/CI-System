@@ -20,6 +20,8 @@ oneTimeSetUp() {
 
 setUp() {
     rm -rf .test
+    rm -rf build
+    export XC_DISABLE_CODE_SIGNING=1
 }
 
 tearDown() {
@@ -29,7 +31,6 @@ tearDown() {
 testProjectNoWarning() {
     export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
     export XC_SCHEME="NoWarning"
-    export XC_DISABLE_CODE_SIGNING=1
     export XC_DESTINATION=mac
     export XC_CLEAN=1
     export XC_BEAUTIFY=0
@@ -48,7 +49,6 @@ testProjectNoWarning() {
 testWorkspaceHasWarning() {
     export XC_WORKSPACE="$B9_ROOT/tests/samples/Tests.xcworkspace"
     export XC_SCHEME="HasWarning"
-    export XC_DISABLE_CODE_SIGNING=1
     export XC_DESTINATION=mac
     export XC_CLEAN=1
     export XC_RESULT_BUNDLE=".test/t2.xcresult"
@@ -70,7 +70,6 @@ testWorkspaceHasWarning() {
 testWorkspaceHasError() {
     export XC_WORKSPACE="$B9_ROOT/tests/samples/Tests.xcworkspace"
     export XC_SCHEME="HasError"
-    export XC_DISABLE_CODE_SIGNING=1
     export XC_DESTINATION=mac
     export XC_CLEAN=1
     export XC_RESULT_BUNDLE=".test/t3.xcresult"
@@ -88,3 +87,64 @@ testWorkspaceHasError() {
         failed "Result bundle file should be generated."
     fi
 }
+
+testAnalyzEnvFlagNotSet() {
+    export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
+    export XC_SCHEME="ClangAnalyz"
+    export XC_DESTINATION=mac
+    export XC_ANALYZE=0
+    code=0
+    output=$(./build-ios) || {
+        code=$?
+    }
+
+    assertEquals "return code" 0 $code
+    assertContains "No issues." "$output"
+    assertNotContains "[A]" "$output"
+}
+
+testAnalyzNoIssues() {
+    export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
+    export XC_SCHEME="NoWarning"
+    export XC_DESTINATION=mac
+    export XC_ANALYZE=1
+    code=0
+    output=$(./build-ios) || {
+        code=$?
+    }
+
+    assertEquals "return code" 0 $code
+    assertContains "No issues." "$output"
+    assertNotContains "[A]" "$output"
+}
+
+testAnalyzHasIssues() {
+    export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
+    export XC_SCHEME="ClangAnalyz"
+    export XC_DESTINATION=mac
+    export XC_ANALYZE=1
+    code=0
+    output=$(./build-ios) || {
+        code=$?
+    }
+
+    assertEquals "return code" 0 $code
+    assertContains "[A]" "$output"
+    # echo ">> $output"
+}
+
+# testAnalyzWithWarningLimit() {
+#     export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
+#     export XC_SCHEME="ClangAnalyz"
+#     export XC_DESTINATION=mac
+#     export XC_ANALYZE=1
+#     export CI_XCODE_WARNING_LIMIT=2
+#     code=0
+#     output=$(./build-ios) || {
+#         code=$?
+#     }
+
+#     assertEquals "return code" 0 $code
+#     assertContains "[A]" "$output"
+#     echo ">> $output"
+# }

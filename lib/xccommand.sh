@@ -20,6 +20,7 @@ readonly _xcParameterList=(
     "XC_WORKSPACE"
     "XC_PROJECT"
     "XC_SCHEME"
+    "XC_ANALYZE"
     "XC_CLEAN"
     "XC_CONFIGURATION"
     "XC_DERIVED_DATA"
