@@ -38,7 +38,7 @@ testNoBundle() {
 testBundleNotExist() {
     export XC_RESULT_BUNDLE="not-exist"
     code=0
-    output=$(./check-result 2>&1) || {
+    output=$(./check-result summary 2>&1) || {
         code=$?
     }
     assertEquals 1 $code

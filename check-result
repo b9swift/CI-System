@@ -20,17 +20,19 @@ Options:
 """)
 }
 
-func logInfo(_ value: CustomStringConvertible) {
-    print("[Result] \(value)")
-}
-
 struct XCArray<T: Decodable>: Decodable, CustomStringConvertible {
     let _values: [T]
 
     var description: String {
-        (_values as NSArray).description
+        _values.description
     }
     var count: Int { _values.count }
+}
+
+extension XCArray where T: CustomStringConvertible {
+    var description: String {
+        _values.map { $0.description }.joined(separator: "\n")
+    }
 }
 
 struct XCString: Decodable, CustomStringConvertible {
@@ -38,13 +40,77 @@ struct XCString: Decodable, CustomStringConvertible {
     var description: String { _value }
 }
 
-struct ActionsInvocationRecord: Decodable, CustomStringConvertible {
-    let issues: ResultIssueSummaries?
+struct Reference: Decodable {
+    var id: XCString?
+}
+
+struct CodeCoverageInfo: Decodable {
+    var reportRef: Reference?
+}
+
+struct ActionResult: Decodable {
+    var status: XCString?
+    var testsRef: Reference?
+    var coverage: CodeCoverageInfo?
+}
+
+struct ActionRecord: Decodable, CustomStringConvertible {
+    var actionResult: ActionResult?
+    var buildResult: ActionResult?
+    var title: XCString?
 
     var description: String {
-        return issues?.description ?? "No issues"
+        let status = actionResult?.status?.description
+        ?? buildResult?.status?.description
+        ?? "Unknown status"
+        return "\(title?.description ?? "Action?"): \(status)"
     }
 
+    var shouldIgnoreInSummary: Bool {
+        actionResult?.status?.description == "notRequested"
+    }
+}
+
+struct ResultMetrics: Decodable, CustomStringConvertible {
+    var warningCount: XCString?
+    var errorCount: XCString?
+    var analyzerWarningCount: XCString?
+    var testsCount: XCString?
+    var testsSkippedCount: XCString?
+    var testsFailedCount: XCString?
+    var totalCoveragePercentage: XCString?
+
+    var description: String {
+        var result = [String]()
+        if let count = warningCount?._value {
+            result.append("Warning: \(count).")
+        }
+        if let count = errorCount?._value {
+            result.append("Error: \(count).")
+        }
+        if let count = analyzerWarningCount?._value {
+            result.append("Static Warning: \(count).")
+        }
+        var testParts = [String]()
+        if let count = testsCount?._value {
+            testParts.append("Tests: \(count) total")
+        }
+        if let count = testsFailedCount?._value {
+            testParts.append("\(count) failed")
+        }
+        if let count = testsSkippedCount?._value {
+            testParts.append("\(count) skipped")
+        }
+        if let count = totalCoveragePercentage?._value,
+           let value = Double(count) {
+            testParts.append("coverage: \(value * 100)%")
+        }
+        result.append(testParts.joined(separator: ", ") + ".")
+        return result.joined(separator: " ")
+    }
+}
+
+struct ActionsInvocationRecord: Decodable {
     init(file: String) throws {
         let url = URL(fileURLWithPath: file)
         let data = try Data(contentsOf: url)
@@ -52,37 +118,39 @@ struct ActionsInvocationRecord: Decodable, CustomStringConvertible {
         decoder.allowsJSON5 = true
         self = try decoder.decode(ActionsInvocationRecord.self, from: data)
     }
-}
 
-struct ResultIssueSummaries: Decodable, CustomStringConvertible {
-    var warningSummaries: [IssueSummary]?
-    var errorSummaries: [IssueSummary]?
-    var analyzerWarningSummaries: [IssueSummary]?
+    private struct ResultIssueSummaries: Decodable {
+        var warningSummaries: XCArray<IssueSummary>?
+        var errorSummaries: XCArray<IssueSummary>?
+        var analyzerWarningSummaries: XCArray<IssueSummary>?
+        var testFailureSummaries: XCArray<IssueSummary>?
+    }
+    private let issues: ResultIssueSummaries?
+    let actions: XCArray<ActionRecord>?
+    let metrics: ResultMetrics
 
-    var description: String {
-        return (warningSummaries as? NSArray)?.description ?? "[]"
+    var buildWarnings: [IssueSummary] {
+        let result = issues?.warningSummaries?._values ?? []
+        result.forEach { $0.kind = .warning }
+        return result
     }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        if container.contains(.warningSummaries) {
-            warningSummaries = try container.decode(XCArray<IssueSummary>.self, forKey: .warningSummaries)._values
-            warningSummaries?.forEach { $0.kind = .warning }
-        }
-        if container.contains(.errorSummaries) {
-            errorSummaries = try container.decode(XCArray<IssueSummary>.self, forKey: .errorSummaries)._values
-            errorSummaries?.forEach { $0.kind = .error }
-        }
-        if container.contains(.analyzerWarningSummaries) {
-            analyzerWarningSummaries = try container.decode(XCArray<IssueSummary>.self, forKey: .analyzerWarningSummaries)._values
-            analyzerWarningSummaries?.forEach { $0.kind = .analyzerWarning }
-        }
+    var buildErrors: [IssueSummary] {
+        let result = issues?.errorSummaries?._values ?? []
+        result.forEach { $0.kind = .error }
+        return result
     }
 
-    enum CodingKeys: String, CodingKey {
-        case warningSummaries
-        case errorSummaries
-        case analyzerWarningSummaries
+    var analyzerWarnings: [IssueSummary] {
+        let result = issues?.analyzerWarningSummaries?._values ?? []
+        result.forEach { $0.kind = .analyzerWarning }
+        return result
+    }
+
+    var testFailures: [IssueSummary] {
+        let result = issues?.testFailureSummaries?._values ?? []
+        result.forEach { $0.kind = .testFail }
+        return result
     }
 }
 
@@ -109,88 +177,6 @@ struct DocumentLocation: Decodable, CustomStringConvertible {
     }
 }
 
-class IssueSummary: Decodable, CustomStringConvertible {
-    private let documentLocationInCreatingWorkspace: DocumentLocation?
-    private let issueType: XCString?
-    let message: XCString?
-
-    enum CodingKeys: String, CodingKey {
-        case documentLocationInCreatingWorkspace
-        case issueType
-        case message
-    }
-
-    enum Kind {
-        case warning
-        case error
-        case analyzerWarning
-        var isError: Bool { self == .error }
-        var isWarning: Bool { self == .warning || self == .analyzerWarning }
-        var logSymbol: String {
-            switch self {
-            case .warning:
-                return "[!]"
-            case .error:
-                return "[x]"
-            case .analyzerWarning:
-                return "[A]"
-            }
-        }
-    }
-    var kind: Kind!
-
-    var description: String {
-        var result = ""
-        if let location = documentLocationInCreatingWorkspace {
-            result += "\(location.description): "
-        }
-        if let message = message {
-            result += "\(message)"
-        }
-        if let issueType = issueType {
-            result += "[\(issueType)]"
-        }
-        return result
-    }
-
-    struct Location {
-        let file: String
-        let line: Int?
-        let column: Int?
-
-        static var fallbackProjectPath: String? = {
-            ProcessInfo.processInfo.environment["XC_PROJECT"]
-            ?? ProcessInfo.processInfo.environment["XC_WORKSPACE"]
-        }()
-    }
-    lazy var location: Location? = {
-        guard let url = documentLocationInCreatingWorkspace?.url.description
-                ?? Location.fallbackProjectPath else { return nil }
-        guard let urlObj = URL(string: url) else { return nil }
-        var components = URLComponents()
-        components.query = urlObj.fragment
-        var line: Int?
-        var column: Int?
-        for item in components.queryItems ?? [] {
-            switch item.name {
-            case "StartingLineNumber":
-                line = Int(item.value ?? "")
-            case "StartingColumnNumber":
-                column = Int(item.value ?? "")
-            default:
-                break
-            }
-        }
-        let file = urlObj.path
-        return Location(file: file, line: line, column: column)
-    }()
-
-    var type: String { issueType?.description ?? "Xcode" }
-    var typeKey: String {
-        "\(kind.logSymbol) \(type)"
-    }
-}
-
 enum AppError: LocalizedError {
     case message(_ message: String)
 
@@ -203,11 +189,13 @@ enum AppError: LocalizedError {
 }
 
 class CheckResult {
-    let records: ActionsInvocationRecord
+    let resultBundlePath: String
+    var records: ActionsInvocationRecord!
     var ignoreWarningTypes = Set<String>()
-    var limitWarningCount = 0
     var issues: [IssueSummary]!
     var ignoredIssues: [IssueSummary]!
+    var testFailures: [IssueSummary]!
+    // Exclude ignored issues
     var warningCount = 0
     var errorCount = 0
 
@@ -215,6 +203,16 @@ class CheckResult {
         guard let file = resultFile else {
             throw AppError.message("You must set XC_RESULT_BUNDLE to use this command.")
         }
+        resultBundlePath = file
+    }
+
+    func decode<T: Decodable>(_ type: T.Type, id: String?) throws -> T {
+        var arguments = ["xcresulttool", "get", "--format", "json", "--path", resultBundlePath]
+        if let id = id {
+            arguments.append("--id")
+            arguments.append(id)
+        }
+
         let tempFile = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("\(UUID().uuidString).json")
         FileManager.default.createFile(atPath: tempFile.path, contents: nil)
         defer {
@@ -224,34 +222,33 @@ class CheckResult {
 
         let task = Process()
         task.launchPath = "/usr/bin/xcrun"
-        task.arguments = ["xcresulttool", "get", "--format", "json", "--path", file]
+        task.arguments = arguments
         task.standardOutput = fileHandle
         task.launch()
         task.waitUntilExit()
         try? fileHandle.close()
+        if task.terminationStatus != 0 {
+            throw AppError.message("Excute xcresulttool failed.")
+        }
 
         let data = try Data(contentsOf: tempFile)
         let decoder = JSONDecoder()
         decoder.allowsJSON5 = true
-        records = try decoder.decode(ActionsInvocationRecord.self, from: data)
+        return try decoder.decode(T.self, from: data)
     }
 
     func prepare() throws {
+        records = try decode(ActionsInvocationRecord.self, id: nil)
         let env = ProcessInfo.processInfo.environment
         if let types = env["CI_XCODE_WARNING_IGNORE_TYPES"] {
             ignoreWarningTypes = Set(types.split(separator: ",").map(String.init))
         }
-        if let rawLimit = env["CI_XCODE_WARNING_LIMIT"] {
-            guard let limit = Int(rawLimit) else {
-                throw AppError.message("Invalid CI_XCODE_WARNING_LIMIT: \(rawLimit).")
-            }
-            limitWarningCount = limit
-        }
+
         issues = []
         ignoredIssues = []
         var warnings = [IssueSummary]()
-        warnings.append(contentsOf: records.issues?.warningSummaries ?? [])
-        warnings.append(contentsOf: records.issues?.analyzerWarningSummaries ?? [])
+        warnings.append(contentsOf: records.buildWarnings)
+        warnings.append(contentsOf: records.analyzerWarnings)
 
         for item in warnings {
             if ignoreWarningTypes.contains(item.type) {
@@ -261,11 +258,13 @@ class CheckResult {
                 warningCount += 1
             }
         }
-        for item in records.issues?.errorSummaries ?? [] {
+        for item in records.buildErrors {
             issues.append(item)
             errorCount += 1
         }
         issues.sort { $0.location?.file ?? "" < $1.location?.file ?? "" }
+
+        testFailures = records.testFailures
     }
 
     func excute(arguments: [String] = CommandLine.arguments) throws {
@@ -305,29 +304,204 @@ class CheckResult {
         }
     }
 
-    var filteredWarnings: [IssueSummary] {
-        issues.filter { $0.kind.isWarning }
+    func summary() throws {
+        if !issues.isEmpty {
+            printIssuesSummary()
+        }
+        if records.metrics.testsCount != nil {
+            for item in records.actions?._values ?? [] where !item.shouldIgnoreInSummary {
+                logInfo(item)
+                getTestsResult(action: item)
+            }
+        }
+        let sum = records.metrics.description
+        if !sum.isEmpty {
+            logInfo(sum)
+        }
     }
 
-    func isIgnored(issue: IssueSummary) -> Bool {
-        ignoreWarningTypes.contains(issue.type)
+    func printNoIssues() {
+        if _hasIssuesPrinted {
+            return
+        }
+        logInfo("No issues.")
+        _hasIssuesPrinted = true
+    }
+    private var _hasIssuesPrinted = false
+}
+
+// MARK: - Issues
+
+class IssueSummary: Decodable, CustomStringConvertible {
+    private let documentLocationInCreatingWorkspace: DocumentLocation?
+    private let issueType: XCString?
+    let message: XCString?
+
+    enum CodingKeys: String, CodingKey {
+        case documentLocationInCreatingWorkspace
+        case issueType
+        case message
+    }
+
+    enum Kind {
+        case warning
+        case error
+        case analyzerWarning
+        case testFail
+        var isError: Bool { self == .error }
+        var isWarning: Bool { self == .warning || self == .analyzerWarning }
+        var logSymbol: String {
+            switch self {
+            case .warning:
+                return "[!]"
+            case .error:
+                return "[x]"
+            case .analyzerWarning:
+                return "[A]"
+            case .testFail:
+                return "[x]"
+            }
+        }
+    }
+    var kind: Kind!
+
+    var description: String {
+        var result = ""
+        if let location = documentLocationInCreatingWorkspace {
+            result += "\(location.description): "
+        }
+        if let message = message {
+            result += "\(message)"
+        }
+        if let issueType = issueType {
+            result += "[\(issueType)]"
+        }
+        return result
+    }
+
+    struct Location {
+        let file: String
+        let line: Int?
+        let column: Int?
+
+        static var fallbackProjectPath: String? = {
+            ProcessInfo.processInfo.environment["XC_PROJECT"]
+            ?? ProcessInfo.processInfo.environment["XC_WORKSPACE"]
+        }()
+
+        var pathForLog: String {
+            let content: String
+            if let line = line {
+                content = "\(file):\(line)"
+            } else {
+                content = file
+            }
+            let max = 54
+            if content.count > max {
+                return "...\(content.suffix(max - 3))"
+            } else {
+                return content
+            }
+        }
+    }
+    lazy var location: Location? = {
+        guard let url = documentLocationInCreatingWorkspace?.url.description
+                ?? Location.fallbackProjectPath else { return nil }
+        guard let urlObj = URL(string: url) else { return nil }
+        var components = URLComponents()
+        components.query = urlObj.fragment
+        var line: Int?
+        var column: Int?
+        for item in components.queryItems ?? [] {
+            switch item.name {
+            case "StartingLineNumber":
+                line = Int(item.value ?? "")
+            case "StartingColumnNumber":
+                column = Int(item.value ?? "")
+            default:
+                break
+            }
+        }
+        let file = urlObj.path
+        return Location(file: file, line: line, column: column)
+    }()
+
+    var type: String { issueType?.description ?? "Xcode" }
+    var typeKey: String {
+        "\(kind.logSymbol) \(type)"
+    }
+
+    var stringForPrint: String {
+        var parts = [String]()
+        parts.append(kind.logSymbol)
+        if let location = location {
+            parts.append(location.pathForLog + ":")
+        }
+        if let message = message {
+            parts.append(message.description)
+        }
+        if let issueType = issueType {
+            parts.append("[\(issueType)]")
+        }
+        return parts.joined(separator: " ")
+    }
+}
+
+extension CheckResult {
+    func listIssues() throws {
+        if issues.isEmpty && testFailures.isEmpty {
+            printNoIssues()
+            return
+        }
+        if !issues.isEmpty {
+            printBuildIssues()
+        }
+        if !testFailures.isEmpty {
+            printTestIssues()
+        }
+    }
+
+    private func printBuildIssues() {
+        var header = "There are: \(errorCount) error(s), \(warningCount) warning(s)"
+        if ignoredIssues.count > 0 {
+            header += ", \(ignoredIssues.count) ignored"
+        }
+        header += ":"
+        logInfo(header)
+        for item in issues {
+            print(item.stringForPrint)
+        }
+    }
+
+    private func printTestIssues() {
+        let count = records.metrics.testsFailedCount?._value ?? testFailures.count.description
+        logInfo("There are \(count) test(s) failed:")
+        for item in testFailures {
+            print(item.stringForPrint)
+        }
     }
 
     func limitWarning() throws {
-        let warnings = filteredWarnings
-        if limitWarningCount == 0 {
+        guard let rawLimit = ProcessInfo.processInfo.environment["CI_XCODE_WARNING_LIMIT"] else {
+            return
+        }
+        guard let limit = Int(rawLimit) else {
+            throw AppError.message("Invalid CI_XCODE_WARNING_LIMIT: \(rawLimit).")
+        }
+        let warnings = issues.filter { $0.kind.isWarning }
+        if limit == 0 {
             logInfo("Warning count \(warnings.count).")
             return
         }
-        if warnings.count > limitWarningCount {
-            logInfo("Warning count \(warnings.count) exceed limit \(limitWarningCount).")
+        if warnings.count > limit {
+            logInfo("Warning count \(warnings.count) exceed limit \(limit).")
             exit(Int32(warnings.count))
         } else {
-            logInfo("Warning count \(warnings.count)/\(limitWarningCount) [OK].")
+            logInfo("Warning count \(warnings.count)/\(limit) [OK].")
         }
     }
 
-    func summary() throws {
+    private func printIssuesSummary() {
         var maxKeyLength = 0
         let map = issues.reduce(into: [String: Int]()) {
             let key = $1.typeKey
@@ -337,7 +511,7 @@ class CheckResult {
             $0[key, default: 0] += 1
         }
 
-        if map.isEmpty {
+        if map.isEmpty && testFailures.isEmpty {
             printNoIssues()
             return
         }
@@ -359,67 +533,102 @@ class CheckResult {
         }
         print(String(repeating: "-", count: maxKeyLength + 5))
     }
-
-    func printNoIssues() {
-        if _hasIssuesPrinted {
-            return
-        }
-        logInfo("No issues.")
-        _hasIssuesPrinted = true
-    }
-    private var _hasIssuesPrinted = false
 }
 
-// MARK: - List
+// MARK: - Tests
 
-extension IssueSummary {
-    var stringForPrint: String {
-        var parts = [String]()
-        parts.append(kind.logSymbol)
-        if let location = location {
-            parts.append(location.pathForLog + ":")
+struct ActionTestSummaryGroup: Decodable, CustomStringConvertible {
+    let duration: XCString?
+    let name: XCString?
+    let subtests: XCArray<ActionTestSummaryGroup>?
+    let testStatus: XCString?
+
+    var displayTitle: String {
+        name?.description ?? "?"
+    }
+    var displayDuration: String {
+        if let duration = duration?._value.prefix(4) {
+            if duration == "0.00" {
+                return ""
+            }
+            return "(\(duration)s)"
         }
-        if let message = message {
-            parts.append(message.description)
+        return "?"
+    }
+
+    var displayStatus: String {
+        switch testStatus?.description {
+        case "Success":
+            return "🟢"
+        case "Failure":
+            return "🔴"
+        case "Expected Failure":
+            return "🔵"
+        case "Skipped":
+            return "⏩️"
+        case .some(let value):
+            return "[\(value)]"
+        default:
+            return "?"
         }
-        if let issueType = issueType {
-            parts.append("[\(issueType)]")
+    }
+
+    var description: String {
+        if isLeaf {
+            return "    \(displayStatus) \(displayTitle) \(displayDuration)"
+        } else if isLeafGroup {
+            return "  \(displayTitle):\n\(subtests?.description ?? "")"
+        } else {
+            return "\(displayTitle):\n\(subtests?.description ?? "")"
         }
-        return parts.joined(separator: " ")
+    }
+
+    var isLeaf: Bool { (subtests?.count ?? 0) == 0 }
+    var isLeafGroup: Bool {
+        subtests?._values.allSatisfy { $0.isLeaf } ?? false
+    }
+
+    func rootDescription() -> String {
+        return "\(subtests?.description ?? "")\n\n\(displayTitle) \(displayDuration)"
     }
 }
 
-extension IssueSummary.Location {
-    var pathForLog: String {
-        let content: String
-        if let line = line {
-            content = "\(file):\(line)"
-        } else {
-            content = file
-        }
-        let max = 54
-        if content.count > max {
-            return "...\(content.suffix(max - 3))"
-        } else {
-            return content
-        }
+struct ActionTestableSummary: Decodable, CustomStringConvertible {
+    var name: XCString?
+    var tests: XCArray<ActionTestSummaryGroup>?
+
+    var description: String {
+        (tests?._values ?? []).map { $0.rootDescription() }.joined(separator: "\n")
+    }
+}
+
+struct ActionTestPlanRunSummary: Decodable, CustomStringConvertible {
+    var name: XCString?
+    var testableSummaries: XCArray<ActionTestableSummary>?
+
+    var description: String {
+        testableSummaries?.description ?? "Summary?"
+    }
+}
+
+struct ActionTestPlanRunSummaries: Decodable, CustomStringConvertible {
+    var summaries: XCArray<ActionTestPlanRunSummary>?
+
+    var description: String {
+        summaries?.description ?? "Summaries?"
     }
 }
 
 extension CheckResult {
-    func listIssues() throws {
-        if issues.isEmpty {
-            printNoIssues()
+    func getTestsResult(action: ActionRecord) {
+        guard let ref = action.actionResult?.testsRef?.id?._value else {
             return
         }
-        var header = "There are: \(errorCount) error(s), \(warningCount) warning(s)"
-        if ignoredIssues.count > 0 {
-            header += ", \(ignoredIssues.count) ignored"
-        }
-        header += ":"
-        logInfo(header)
-        for item in issues {
-            print(item.stringForPrint)
+        do {
+            let result = try decode(ActionTestPlanRunSummaries.self, id: ref)
+            print(result)
+        } catch {
+            logInfo(error.localizedDescription)
         }
     }
 }
@@ -456,19 +665,7 @@ extension CheckResult {
         let root = XMLElement(name: "checkstyle", attributes: ["version": "4.3"])
         var lastFile: String?
         var lastFileElement: XMLElement?
-        for item in filteredWarnings {
-            guard let file = item.location?.file else {
-                continue
-            }
-            if file != lastFile {
-                lastFile = file
-                let fileElement = XMLElement(name: "file", attributes: ["name": file])
-                root.addChild(fileElement)
-                lastFileElement = fileElement
-            }
-            lastFileElement?.addChild(item.checkstyleElement)
-        }
-        for item in records.issues?.errorSummaries ?? [] {
+        for item in issues {
             guard let file = item.location?.file else {
                 continue
             }
@@ -500,6 +697,10 @@ extension XMLElement {
 }
 
 // MARK: -
+
+func logInfo(_ value: CustomStringConvertible) {
+    print("[Result] \(value)")
+}
 
 do {
     let main = try CheckResult()
