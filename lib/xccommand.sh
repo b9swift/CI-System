@@ -27,7 +27,6 @@ readonly _xcParameterList=(
     "XC_DESTINATION"
     "XC_DISABLE_CODE_SIGNING"
     "XC_RESULT_BUNDLE"
-    "XC_REDIRECT_STDERR"
     "XC_LOG_FILE"
     "XC_BEAUTIFY"
 )
@@ -47,10 +46,6 @@ xcCommand() {
         return 1
     fi
     export _xcAction="$1"
-
-    # if [[ $(checkVar "${XC_REDIRECT_STDERR:-}") == 0 ]]; then
-    #     xcParts+=("2>&1")
-    # fi
 
     _xcChain3
 }

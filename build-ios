@@ -13,9 +13,6 @@ fi
 if [[ ! -v XC_BEAUTIFY ]]; then
     XC_BEAUTIFY=1
 fi
-if [[ ! -v XC_REDIRECT_STDERR ]]; then
-    XC_REDIRECT_STDERR=1
-fi
 
 if [[ -z ${XC_RESULT_BUNDLE-} ]]; then
     export XC_RESULT_BUNDLE="build/xc-build.xcresult"
