@@ -1,5 +1,5 @@
 //
-//  UnitTests.swift
+//  File1.swift
 //  TestsOK
 //
 //  Copyright (c) 2024 BB9z, MIT License
@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class UnitTests: XCTestCase {
+final class Tests1: XCTestCase {
     func testOK() {
         XCTAssert(true)
     }
