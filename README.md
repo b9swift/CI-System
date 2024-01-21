@@ -6,26 +6,25 @@
 
 ### build-ios
 
-Build iOS target.
+Build an iOS target.
 
 Environment variables:
 
 * Supports [xcCommand](#xcCommand) variables.
 * `CI_CHECK_STYLE_FILE`: Export checkstyle.xml to this path.
-* `XC_ANALYZE`, set to `true` or `1` to perform static analysis during build. Default is disabled.
+* `XC_ANALYZE`, set to `true` or `1` to perform static analysis during the build. By default, this is disabled.
 
 ### check-result
 
-Parse xcresult bundle, it can:
+This tool parses the Xcode result bundle and performs certain actions. It can:
 
-* Print build warnings and summary.
-* Export checkstyle.xml.
+* List build warnings and errors, including support for static analysis results.
+* Limit build warnings to a specified threshold.
+* Provide a view of issue category statistics.
+* Print a summary of the tests.
+* Export build issues to a checkstyle.xml report file.
 
-Environment variables:
-
-* `CI_XCODE_WARNING_IGNORE_TYPES`: Ignore warning types, separated by comma. eg. `"No-usage,Deprecations,Documentation Issue"`
-* `CI_XCODE_WARNING_LIMIT`: Limit warning count. eg. `100`.
-* `CI_XCODE_ERROR_LIMIT`: Limit error count. Default is `0`.
+See [command usage](https://github.com/b9swift/CI-System/blob/main/check-result#L10) for more details.
 
 ### fetch-mr
 
@@ -33,12 +32,12 @@ Fetch merge request.
 
 Environment variables:
 
-* `CI_CHANGE_LIST_PATH`: Save changed files list to this path.
-* `CI_GIT_MR_BRANCH`: Merge request branch name.
+* `CI_CHANGE_LIST_PATH`: Saves the list of changed files to this path.
+* `CI_GIT_MR_BRANCH`: The name of the merge request branch.
 
 ### pod-install
 
-Smart CocoaPods install.
+Performs a smart CocoaPods installation.
 
 Environment variables:
 
@@ -50,12 +49,12 @@ Environment variables:
 
 <!-- Link here: xccommand.sh -->
 
-Inputs:
+Inputs environment variables:
 
-- `XC_WORKSPACE`, workspace file path.
-- `XC_PROJECT`, project file path.
-- `XC_SCHEME`, scheme name.
-- `XC_CLEAN`, set to `true` to clean before executing the action.
+- `XC_WORKSPACE`, the path to the workspace file.
+- `XC_PROJECT`, the path to the project file.
+- `XC_SCHEME`, the name of the scheme.
+- `XC_CLEAN`, set to `true` or `1` to clean before executing the action.
 - `XC_CONFIGURATION`, build configuration, eg. `Debug`/`Release`/...
 - `XC_DERIVED_DATA`, the xcodebuild command derivedDataPath parameter, defaults to `build/DerivedData`, set to an empty string or `0` or `false` to disable customization.
 - `XC_DESTINATION`, target device, value can be the full parameter or abbreviations like `mac`, `ios`, `watchos`, `tvos`.
@@ -66,7 +65,7 @@ Inputs:
 
 ## Run Tests
 
-[shunit2](https://github.com/kward/shunit2) required. You can install it via Homebrew.
+[shunit2](https://github.com/kward/shunit2) is required. You can install it via Homebrew.
 
 ```zsh
 $ ./run_tests

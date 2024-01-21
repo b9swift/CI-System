@@ -13,9 +13,6 @@ fi
 if [[ ! -v XC_BEAUTIFY ]]; then
     XC_BEAUTIFY=1
 fi
-if [[ ! -v XC_REDIRECT_STDERR ]]; then
-    XC_REDIRECT_STDERR=1
-fi
 
 if [[ -z ${XC_RESULT_BUNDLE-} ]]; then
     export XC_RESULT_BUNDLE="build/xc-build.xcresult"
@@ -47,9 +44,12 @@ else
     logInfo "[Xcode] Building completed."
 fi
 
-resultCommands=("$(dirname $0)/check-result" listIssues summary)
+resultCommands=("$(dirname $0)/check-result" listIssues)
 if [[ -n "${CI_CHECK_STYLE_FILE:-}" ]]; then
     resultCommands+=("checkstyle")
+fi
+if [[ -n "${CI_XCODE_WARNING_LIMIT:-}" ]]; then
+    resultCommands+=("limitWarning")
 fi
 "${resultCommands[@]}"
 
