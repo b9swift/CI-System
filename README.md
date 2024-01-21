@@ -15,10 +15,16 @@ Environment variables:
 
 ### check-result
 
+Parse xcresult bundle, it can:
+
+* Print build warnings and summary.
+* Export checkstyle.xml.
+
 Environment variables:
 
 * `CI_XCODE_WARNING_IGNORE_TYPES`: Ignore warning types, separated by comma. eg. `"No-usage,Deprecations,Documentation Issue"`
-* `CI_XCODE_WARNING_LIMIT`: Limit warning count. eg. `100`
+* `CI_XCODE_WARNING_LIMIT`: Limit warning count. eg. `100`.
+* `CI_XCODE_ERROR_LIMIT`: Limit error count. Default is `0`.
 
 ### fetch-mr
 

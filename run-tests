@@ -7,52 +7,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 export B9_ROOT="$(pwd)"
 
+. "$B9_ROOT/lib/log.sh"
+
 for testFile in tests/test_*.sh; do
     echo "\n[Test] $(basename "$testFile")"
     shunit2 "$testFile"
 done
-
-. "$B9_ROOT/lib/xccommand.sh"
-
-logSection "Test project no warning"
-xcCommandParametersRestAll
-rm -rf build
-
-export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
-export XC_SCHEME="NoWarning"
-export XC_DISABLE_CODE_SIGNING=1
-export XC_DESTINATION=mac
-export XC_CLEAN=1
-export XC_BEAUTIFY=0
-unset XC_RESULT_BUNDLE  # should use default
-./build-ios
-
-if [[ ! -d "build/xc-build.xcresult" ]]; then
-    logError "Result bundle file should be generated."
-    exit 1
-fi
-
-logSection "Test workspace has warning"
-xcCommandParametersRestAll
-rm -rf ".test"
-
-export XC_WORKSPACE="tests/samples/Tests.xcworkspace"
-export XC_SCHEME="HasWarning"
-export XC_DISABLE_CODE_SIGNING=1
-export XC_DESTINATION=mac
-export XC_CLEAN=1
-export XC_BEAUTIFY=0
-export XC_RESULT_BUNDLE=".test/t2.xcresult"
-export CI_CHECK_STYLE_FILE=".test/t2.xml"
-./build-ios
-
-if [[ ! -f "$CI_CHECK_STYLE_FILE" ]]; then
-    logError "Checkstyle file should be generated."
-    exit 1
-fi
-if [[ ! -d "$XC_RESULT_BUNDLE" ]]; then
-    logError "Result bundle file should be generated."
-    exit 1
-fi
 
 logInfo "[Done]"
