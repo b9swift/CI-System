@@ -198,6 +198,9 @@ class CheckResult {
         task.launch()
         task.waitUntilExit()
         try? fileHandle.close()
+        if task.terminationStatus != 0 {
+            throw AppError.message("Excute xcresulttool failed.")
+        }
 
         let data = try Data(contentsOf: tempFile)
         let decoder = JSONDecoder()
