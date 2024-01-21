@@ -1,6 +1,6 @@
 //
-//  NoWarning/main.swift
-//  BuildTests
+//  main.swift
+//  NoWarning
 //
 //  Copyright (c) 2024 BB9z, MIT License
 //
