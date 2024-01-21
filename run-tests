@@ -7,6 +7,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 export B9_ROOT="$(pwd)"
 
+. "$B9_ROOT/lib/log.sh"
+
 for testFile in tests/test_*.sh; do
     echo "\n[Test] $(basename "$testFile")"
     shunit2 "$testFile"
