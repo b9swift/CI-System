@@ -133,18 +133,17 @@ testAnalyzHasIssues() {
     # echo ">> $output"
 }
 
-# testAnalyzWithWarningLimit() {
-#     export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
-#     export XC_SCHEME="ClangAnalyz"
-#     export XC_DESTINATION=mac
-#     export XC_ANALYZE=1
-#     export CI_XCODE_WARNING_LIMIT=2
-#     code=0
-#     output=$(./build-ios) || {
-#         code=$?
-#     }
+testAnalyzWithWarningLimit() {
+    export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
+    export XC_SCHEME="HasWarning"
+    export XC_DESTINATION=mac
+    export CI_XCODE_WARNING_LIMIT=2
+    code=0
+    output=$(./build-ios) || {
+        code=$?
+    }
 
-#     assertEquals "return code" 0 $code
-#     assertContains "[A]" "$output"
-#     echo ">> $output"
-# }
+    assertEquals "return code is warning count" 3 $code
+    assertContains "$output" "[!]"
+    assertContains "$output" "Warning count 3 exceed limit 2"
+}

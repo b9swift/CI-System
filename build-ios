@@ -47,9 +47,12 @@ else
     logInfo "[Xcode] Building completed."
 fi
 
-resultCommands=("$(dirname $0)/check-result" listIssues summary)
+resultCommands=("$(dirname $0)/check-result" listIssues)
 if [[ -n "${CI_CHECK_STYLE_FILE:-}" ]]; then
     resultCommands+=("checkstyle")
+fi
+if [[ -n "${CI_XCODE_WARNING_LIMIT:-}" ]]; then
+    resultCommands+=("limitWarning")
 fi
 "${resultCommands[@]}"
 
