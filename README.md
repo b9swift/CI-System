@@ -49,7 +49,7 @@ Environment variables:
 
 <!-- Link here: xccommand.sh -->
 
-Inputs:
+Inputs environment variables:
 
 - `XC_WORKSPACE`, the path to the workspace file.
 - `XC_PROJECT`, the path to the project file.

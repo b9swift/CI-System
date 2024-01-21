@@ -99,8 +99,8 @@ testAnalyzEnvFlagNotSet() {
     }
 
     assertEquals "return code" 0 $code
-    assertContains "No issues." "$output"
-    assertNotContains "[A]" "$output"
+    assertContains "$output" "No issues."
+    assertNotContains "$output" "[A]"
 }
 
 testAnalyzNoIssues() {
@@ -114,8 +114,8 @@ testAnalyzNoIssues() {
     }
 
     assertEquals "return code" 0 $code
-    assertContains "No issues." "$output"
-    assertNotContains "[A]" "$output"
+    assertContains "$output" "No issues."
+    assertNotContains "$output" "[A]"
 }
 
 testAnalyzHasIssues() {
@@ -129,7 +129,7 @@ testAnalyzHasIssues() {
     }
 
     assertEquals "return code" 0 $code
-    assertContains "[A]" "$output"
+    assertContains "$output" "[A]"
     # echo ">> $output"
 }
 
