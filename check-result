@@ -9,16 +9,21 @@ func printUsage() {
     print("""
 Usage: \(name) <action>...
 
-Actions:
-  checkstyle: Generate checkstyle report to CI_CHECK_STYLE_FILE.
-  limitWarning: Limit the number of warnings to the given limit, if the number exceeds, the script exit status code is the number of warnings.
-  listIssues: Print all warnings.
-  summary: Statistical information of the results.
+Parse the Xcode result bundle and execute certain actions.
 
-Options:
-  -h, --help: print this message
+Actions:
+  checkstyle: Generate a checkstyle report to CI_CHECK_STYLE_FILE.
+  limitWarning: Set a limit to the number of warnings. If the number exceeds the limit, the script's exit status code will be the number of warnings.
+  listIssues: Display build warnings, errors, and analyzer issues.
+  summary: Provide statistical information about the results.
+
+Environment variables:
+
+* CI_XCODE_WARNING_IGNORE_TYPES: Ignore specific types of warnings, separated by commas. For example, `"No-usage,Deprecations,Documentation Issue"`.
+* CI_XCODE_WARNING_LIMIT: Set a limit to the warning count. For example, `100`.
 """)
 }
+// * `CI_XCODE_ERROR_LIMIT`: Limit error count. Default is `0`.
 
 struct XCArray<T: Decodable>: Decodable, CustomStringConvertible {
     let _values: [T]
