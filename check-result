@@ -71,7 +71,7 @@ struct ActionRecord: Decodable, CustomStringConvertible {
     }
 }
 
-struct ResultMetrics: Decodable {
+struct ResultMetrics: Decodable, CustomStringConvertible {
     var warningCount: XCString?
     var errorCount: XCString?
     var analyzerWarningCount: XCString?
@@ -79,6 +79,35 @@ struct ResultMetrics: Decodable {
     var testsSkippedCount: XCString?
     var testsFailedCount: XCString?
     var totalCoveragePercentage: XCString?
+
+    var description: String {
+        var result = [String]()
+        if let count = warningCount?._value {
+            result.append("Warning: \(count).")
+        }
+        if let count = errorCount?._value {
+            result.append("Error: \(count).")
+        }
+        if let count = analyzerWarningCount?._value {
+            result.append("Static Warning: \(count).")
+        }
+        var testParts = [String]()
+        if let count = testsCount?._value {
+            testParts.append("Tests: \(count) total")
+        }
+        if let count = testsFailedCount?._value {
+            testParts.append("\(count) failed")
+        }
+        if let count = testsSkippedCount?._value {
+            testParts.append("\(count) skipped")
+        }
+        if let count = totalCoveragePercentage?._value,
+           let value = Double(count) {
+            testParts.append("coverage: \(value * 100)%")
+        }
+        result.append(testParts.joined(separator: ", ") + ".")
+        return result.joined(separator: " ")
+    }
 }
 
 struct ActionsInvocationRecord: Decodable {
@@ -279,13 +308,15 @@ class CheckResult {
         if !issues.isEmpty {
             printIssuesSummary()
         }
-        if issues.isEmpty && testFailures.isEmpty {
-            printNoIssues()
-            return
+        if records.metrics.testsCount != nil {
+            for item in records.actions?._values ?? [] where !item.shouldIgnoreInSummary {
+                logInfo(item)
+                getTestsResult(action: item)
+            }
         }
-        for item in records.actions?._values ?? [] where !item.shouldIgnoreInSummary {
-            logInfo(item)
-            getTestsResult(action: item)
+        let sum = records.metrics.description
+        if !sum.isEmpty {
+            logInfo(sum)
         }
     }
 
