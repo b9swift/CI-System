@@ -126,3 +126,16 @@ testCommandsWithHasWarningAndError() {
     assertContains "$output" ": 4"
     echo "$output"
 }
+
+testWarningIgnoreWithExcludes() {
+    export XC_RESULT_BUNDLE="$B9_ROOT/tests/samples/HasWarningAndError.xcresult"
+    export CI_XCODE_WARNING_EXCLUDES="/HasError/"
+    code=0
+    output=$(./check-result listIssues summary) || {
+        code=$?
+    }
+    assertEquals 0 $code
+    assertContains "$output" "There are: 2 error(s), 1 warning(s), 1 ignored"
+    assertContains "$output" "Ignored"
+    echo "$output"
+}

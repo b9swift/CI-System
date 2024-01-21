@@ -19,7 +19,8 @@ Actions:
 
 Environment variables:
 
-* CI_XCODE_WARNING_IGNORE_TYPES: Ignore specific types of warnings, separated by commas. For example, `"No-usage,Deprecations,Documentation Issue"`.
+* CI_XCODE_WARNING_IGNORE_TYPES: Ignore specific types of warnings, separated by commas. For example, "No-usage,Deprecations,Documentation Issue".
+* CI_XCODE_WARNING_EXCLUDES: Files to be excluded from the warning list, regular expressions separated by commas.
 * CI_XCODE_WARNING_LIMIT: Set a limit to the warning count. For example, `100`.
 """)
 }
@@ -197,6 +198,7 @@ class CheckResult {
     let resultBundlePath: String
     var records: ActionsInvocationRecord!
     var ignoreWarningTypes = Set<String>()
+    var ignoreWarningPattern = [NSRegularExpression]()
     var issues: [IssueSummary]!
     var ignoredIssues: [IssueSummary]!
     var testFailures: [IssueSummary]!
@@ -248,6 +250,17 @@ class CheckResult {
         if let types = env["CI_XCODE_WARNING_IGNORE_TYPES"] {
             ignoreWarningTypes = Set(types.split(separator: ",").map(String.init))
         }
+        if let excludes = env["CI_XCODE_WARNING_EXCLUDES"] {
+            let regexes = excludes.split(separator: ",").map(String.init)
+            ignoreWarningPattern = regexes.compactMap { 
+                do {
+                    return try NSRegularExpression(pattern: $0)
+                } catch {
+                    logInfo("Invalid regex: \($0)")
+                    return nil
+                }
+            }
+        }
 
         issues = []
         ignoredIssues = []
@@ -258,10 +271,14 @@ class CheckResult {
         for item in warnings {
             if ignoreWarningTypes.contains(item.type) {
                 ignoredIssues.append(item)
-            } else {
-                issues.append(item)
-                warningCount += 1
+                continue
             }
+            if ignoreWarningPattern.contains(where: { item.isLocation(match: $0) }) {
+                ignoredIssues.append(item)
+                continue
+            }
+            issues.append(item)
+            warningCount += 1
         }
         for item in records.buildErrors {
             issues.append(item)
@@ -430,6 +447,12 @@ class IssueSummary: Decodable, CustomStringConvertible {
         let file = urlObj.path
         return Location(file: file, line: line, column: column)
     }()
+    func isLocation(match: NSRegularExpression) -> Bool {
+        guard let file = location?.file else {
+            return false
+        }
+        return match.firstMatch(in: file, options: [], range: NSRange(location: 0, length: file.count)) != nil
+    }
 
     var type: String { issueType?.description ?? "Xcode" }
     var typeKey: String {
