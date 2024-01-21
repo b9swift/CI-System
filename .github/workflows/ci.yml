@@ -14,7 +14,10 @@ on:
 
 jobs:
   test:
-    runs-on: macos-13
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-13, macos-12]
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
