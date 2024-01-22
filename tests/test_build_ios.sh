@@ -88,6 +88,25 @@ testWorkspaceHasError() {
     fi
 }
 
+testIssuesHighlight() {
+    export XC_WORKSPACE="$B9_ROOT/tests/samples/Tests.xcworkspace"
+    export XC_SCHEME="HasError"
+    export XC_DESTINATION=mac
+    export XC_CLEAN=1
+    export XC_RESULT_BUNDLE=".test/t4.xcresult"
+    export CI_CHECK_STYLE_FILE=".test/t4.xml"
+    export CI_ISSUES_HIGHLIGHT_FILE_LIST_PATH="tests/samples/ChangeListHasWarning1.txt"
+    code=0
+    output=$(./build-ios) || {
+        code=$?
+    }
+    echo ">> $output"
+
+    assertNotEquals "build should fail" 0 $code
+    assertContains "$output" "There are: 2 error(s), 3 warning(s)"
+    assertContains "$output" "Only 1 issue(s) related to changed files are shown."
+}
+
 testAnalyzEnvFlagNotSet() {
     export XC_PROJECT="tests/samples/BuildTests.xcodeproj"
     export XC_SCHEME="ClangAnalyz"
