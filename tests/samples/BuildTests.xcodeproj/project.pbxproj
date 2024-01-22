@@ -15,6 +15,7 @@
 		D5D01F9B2B5D01F600376B84 /* File2.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D01F9A2B5D01F600376B84 /* File2.swift */; };
 		D5D01FA92B5D02B300376B84 /* File2.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D01F9D2B5D025F00376B84 /* File2.swift */; };
 		D5D01FAA2B5D02B600376B84 /* File1.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D01F9E2B5D025F00376B84 /* File1.swift */; };
+		D5D01FAD2B5EB8F300376B84 /* function.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D01FAB2B5EB8BE00376B84 /* function.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -71,6 +72,7 @@
 		D5D01F9D2B5D025F00376B84 /* File2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = File2.swift; sourceTree = "<group>"; };
 		D5D01F9E2B5D025F00376B84 /* File1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = File1.swift; sourceTree = "<group>"; };
 		D5D01FA82B5D02A000376B84 /* TestsFail.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TestsFail.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D5D01FAB2B5EB8BE00376B84 /* function.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = function.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -163,6 +165,7 @@
 		11930BA12B5A55BA001A4419 /* HasWarning */ = {
 			isa = PBXGroup;
 			children = (
+				D5D01FAB2B5EB8BE00376B84 /* function.swift */,
 				11930BAB2B5A561C001A4419 /* main.swift */,
 			);
 			path = HasWarning;
@@ -411,6 +414,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D5D01FAD2B5EB8F300376B84 /* function.swift in Sources */,
 				11930BAC2B5A562E001A4419 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

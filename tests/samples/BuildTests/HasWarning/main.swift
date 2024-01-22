@@ -10,13 +10,5 @@ import Foundation
 "unused"
 
 if (nil == 1) {
-}
-
-func foo() {
-    var array = [1, 2, 3]
-    let outOfBounds = array[5]
-    var optionalVariable: Int!
-    optionalVariable = outOfBounds
-
-    print(optionalVariable + 1)
+    foo()
 }
