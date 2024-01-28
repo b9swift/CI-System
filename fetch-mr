@@ -17,7 +17,8 @@ git remote prune origin
 git fetch origin "$CI_GIT_MR_BRANCH"
 
 if [[ -n "${CI_CHANGE_LIST_PATH:-}" ]]; then
-    git diff --name-only "origin/$CI_GIT_MR_BRANCH" > "$CI_CHANGE_LIST_PATH"
+    git diff --name-only HEAD..."origin/$CI_GIT_MR_BRANCH" > "$CI_CHANGE_LIST_PATH"
+    logInfo "[MergeRequests] Change list saved to $CI_CHANGE_LIST_PATH."
 fi
 
 git merge "origin/$CI_GIT_MR_BRANCH" --no-edit --no-commit --no-verify || {
