@@ -6,13 +6,7 @@
 
 ### build-ios
 
-Build an iOS target.
-
-Environment variables:
-
-* Supports [xcCommand](#xcCommand) variables.
-* `CI_CHECK_STYLE_FILE`: Export checkstyle.xml to this path.
-* `XC_ANALYZE`, set to `true` or `1` to perform static analysis during the build. By default, this is disabled.
+Build an iOS target. This command is a redirect to [xcode-build](#xcode-build).
 
 ### check-result
 
@@ -43,6 +37,16 @@ Environment variables:
 
 * `CI_POD_INSTALL_LOG_FILE`: Path to the log file. Default: `build/pod_install.log`
 
+### xcode-build
+
+Build an Xcode project or workspace. This tool is a wrapper for the `xcodebuild` command.
+
+Environment variables:
+
+* Supports [xcCommand](#xcCommand) variables.
+* `CI_CHECK_STYLE_FILE`: Export checkstyle.xml to this path.
+* `XC_ANALYZE`, set to `true` or `1` to perform static analysis during the build. By default, this is disabled.
+
 ## Common Variables
 
 ### xcCommand
@@ -57,7 +61,7 @@ Inputs environment variables:
 - `XC_CLEAN`, set to `true` or `1` to clean before executing the action.
 - `XC_CONFIGURATION`, build configuration, eg. `Debug`/`Release`/...
 - `XC_DERIVED_DATA`, the xcodebuild command derivedDataPath parameter, defaults to `build/DerivedData`, set to an empty string or `0` or `false` to disable customization.
-- `XC_DESTINATION`, target device, value can be the full parameter or abbreviations like `mac`, `ios`, `watchos`, `tvos`.
+- `XC_DESTINATION`, target device, value can be the full parameter or supported abbreviations: `mac`, `ios`, `watchos`, `tvos`, `ios-simulator`, `watchos-simulator`, `tvos-simulator`. For simulator, it will auto select the latest available one.
 - `XC_DISABLE_CODE_SIGNING`, set to `true` or `1` to disable code signing.
 - `XC_RESULT_BUNDLE`, path to xcresult bundle.
 - `XC_LOG_FILE`, path to log file.

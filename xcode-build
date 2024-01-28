@@ -1,0 +1,56 @@
+#!/bin/zsh
+# https://github.com/b9swift/CI-System
+# Copyright (c) 2024 BB9z, MIT License
+
+set -euo pipefail
+
+. "$(dirname $0)/lib/xccommand.sh"
+
+# Default configuration
+if [[ -z "${XC_DESTINATION:-}" ]]; then
+    XC_DESTINATION="ios"
+fi
+if [[ ! -v XC_BEAUTIFY ]]; then
+    XC_BEAUTIFY=1
+fi
+
+if [[ -z ${XC_RESULT_BUNDLE-} ]]; then
+    export XC_RESULT_BUNDLE="build/xc-build.xcresult"
+    logInfo "[Path] Use default result bundle: $XC_RESULT_BUNDLE"
+fi
+if [[ ! -v XC_LOG_FILE ]]; then
+    export XC_LOG_FILE="build/xc-build.log"
+    logInfo "[Path] Use default log file: $XC_LOG_FILE"
+fi
+
+prepeareResultFile "$XC_RESULT_BUNDLE"
+if [[ -n $XC_LOG_FILE ]]; then
+    prepeareResultFile "$XC_LOG_FILE"
+fi
+
+logInfo "[Xcode] Building..."
+
+action="build"
+if [[ $(checkVar "${XC_ANALYZE:-}") == 0 ]]; then
+    action="analyze"
+fi
+code=0
+xcCommand $action | showProgress || {
+    code=$?
+}
+if [[ $code != 0 ]]; then
+    logError "[Xcode] Building failed."
+else
+    logInfo "[Xcode] Building completed."
+fi
+
+resultCommands=("$(dirname $0)/check-result" listIssues)
+if [[ -n "${CI_CHECK_STYLE_FILE:-}" ]]; then
+    resultCommands+=("checkstyle")
+fi
+if [[ -n "${CI_XCODE_WARNING_LIMIT:-}" ]]; then
+    resultCommands+=("limitWarning")
+fi
+"${resultCommands[@]}"
+
+exit $code
