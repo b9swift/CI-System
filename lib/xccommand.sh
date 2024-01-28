@@ -68,21 +68,9 @@ _xcChain1() {
     if [[ $(checkVar "${XC_DERIVED_DATA-1}") == 0 ]]; then
         xcParts+=("-derivedDataPath" "${XC_DERIVED_DATA-"build/DerivedData"}")
     fi
-
     if [[ -n "${XC_DESTINATION:-}" ]]; then
-        if [[ "${XC_DESTINATION}" == "mac" ]]; then
-            xcParts+=("-destination" "generic/platform=macOS")
-        elif [[ "${XC_DESTINATION}" == "ios" ]]; then
-            xcParts+=("-destination" "generic/platform=iOS")
-        elif [[ "${XC_DESTINATION}" == "watchos" ]]; then
-            xcParts+=("-destination" "generic/platform=watchOS")
-        elif [[ "${XC_DESTINATION}" == "tvos" ]]; then
-            xcParts+=("-destination" "generic/platform=tvOS")
-        else
-            xcParts+=("-destination" "${XC_DESTINATION}")
-        fi
+        xcParts+=("-destination" "$(_xcCompleteDestination)")
     fi
-
     if [[ -n "${XC_RESULT_BUNDLE:-}" ]]; then
         xcParts+=("-resultBundlePath" "${XC_RESULT_BUNDLE}")
     fi
@@ -139,6 +127,47 @@ _xcChain3() {
     else
         _xcChain2
     fi
+}
+
+_xcCompleteDestination() {
+    case "$XC_DESTINATION" in
+        "mac")
+            echo "generic/platform=macOS";;
+        "ios")
+            echo "generic/platform=iOS";;
+        "ios-simulator")
+            echo "$(_xcAutoSelecteSimulator "platform:iOS Simulator")";;
+        "watchos")
+            echo "generic/platform=watchOS";;
+        "watchos-simulator")
+            echo "$(_xcAutoSelecteSimulator "platform:watchOS Simulator")";;
+        "tvos")
+            echo "generic/platform=tvOS";;
+        "tvos-simulator")
+            echo "$(_xcAutoSelecteSimulator "platform:tvOS Simulator")";;
+        *)
+            echo "$XC_DESTINATION";;
+    esac
+}
+
+_xcAutoSelecteSimulator() {
+    logInfo "Detecting simulator for $1..."
+    local selectCommand=("xcodebuild" "-showdestinations")
+    if [[ -n "${XC_WORKSPACE:-}" ]]; then
+        selectCommand+=("-workspace" "${XC_WORKSPACE}")
+    fi
+    if [[ -n "${XC_PROJECT:-}" ]]; then
+        selectCommand+=("-project" "${XC_PROJECT}")
+    fi
+    if [[ -n "${XC_SCHEME:-}" ]]; then
+        selectCommand+=("-scheme" "${XC_SCHEME}")
+    fi
+    local destList=$("${selectCommand[@]}" | grep "$1" | grep -v ":placeholder")
+    local destLast=$(echo "$destList" | tail -1)
+    local destLastID=$(echo "$destLast" | awk -F 'id:' '{print $2}' | awk -F ',' '{print $1}')
+    local destLastName=$(echo "$destLast" | awk -F 'name:' '{print $2}' | awk -F '}' '{print $1}')
+    logWarning "Auto select simulator: $destLastName($destLastID)."
+    echo "platform=iOS Simulator,id=$destLastID"
 }
 
 # Print xcCommand environment variables for debugging
