@@ -6,13 +6,7 @@
 
 ### build-ios
 
-Build an iOS target.
-
-Environment variables:
-
-* Supports [xcCommand](#xcCommand) variables.
-* `CI_CHECK_STYLE_FILE`: Export checkstyle.xml to this path.
-* `XC_ANALYZE`, set to `true` or `1` to perform static analysis during the build. By default, this is disabled.
+Build an iOS target. This command is a redirect to [xcode-build](#xcode-build).
 
 ### check-result
 
@@ -42,6 +36,16 @@ Performs a smart CocoaPods installation.
 Environment variables:
 
 * `CI_POD_INSTALL_LOG_FILE`: Path to the log file. Default: `build/pod_install.log`
+
+### xcode-build
+
+Build an Xcode project or workspace. This tool is a wrapper for the `xcodebuild` command.
+
+Environment variables:
+
+* Supports [xcCommand](#xcCommand) variables.
+* `CI_CHECK_STYLE_FILE`: Export checkstyle.xml to this path.
+* `XC_ANALYZE`, set to `true` or `1` to perform static analysis during the build. By default, this is disabled.
 
 ## Common Variables
 
