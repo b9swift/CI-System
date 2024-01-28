@@ -136,15 +136,15 @@ _xcCompleteDestination() {
         "ios")
             echo "generic/platform=iOS";;
         "ios-simulator")
-            echo "$(_xcAutoSelecteSimulator "platform:iOS Simulator")";;
+            echo "$(_xcAutoSelecteSimulator "iOS Simulator")";;
         "watchos")
             echo "generic/platform=watchOS";;
         "watchos-simulator")
-            echo "$(_xcAutoSelecteSimulator "platform:watchOS Simulator")";;
+            echo "$(_xcAutoSelecteSimulator "watchOS Simulator")";;
         "tvos")
             echo "generic/platform=tvOS";;
         "tvos-simulator")
-            echo "$(_xcAutoSelecteSimulator "platform:tvOS Simulator")";;
+            echo "$(_xcAutoSelecteSimulator "tvOS Simulator")";;
         *)
             echo "$XC_DESTINATION";;
     esac
@@ -162,12 +162,12 @@ _xcAutoSelecteSimulator() {
     if [[ -n "${XC_SCHEME:-}" ]]; then
         selectCommand+=("-scheme" "${XC_SCHEME}")
     fi
-    local destList=$("${selectCommand[@]}" | grep "$1" | grep -v ":placeholder")
+    local destList=$("${selectCommand[@]}" | grep "platform:$1" | grep -v ":placeholder")
     local destLast=$(echo "$destList" | tail -1)
     local destLastID=$(echo "$destLast" | awk -F 'id:' '{print $2}' | awk -F ',' '{print $1}')
     local destLastName=$(echo "$destLast" | awk -F 'name:' '{print $2}' | awk -F '}' '{print $1}')
     logWarning "Auto select simulator: $destLastName($destLastID)."
-    echo "platform=iOS Simulator,id=$destLastID"
+    echo "platform=$1,id=$destLastID"
 }
 
 # Print xcCommand environment variables for debugging
