@@ -3,6 +3,7 @@
 // Copyright (c) 2024 BB9z, MIT License
 
 import Foundation
+import FoundationXML
 
 func printUsage() {
     let name = CommandLine.arguments.first ?? "check-result"
@@ -223,17 +224,17 @@ class CheckResult {
         }
 
         let tempFile = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("\(UUID().uuidString).json")
-        FileManager.default.createFile(atPath: tempFile.path, contents: nil)
+        _ = FileManager.default.createFile(atPath: tempFile.path, contents: nil)
         defer {
             try? FileManager.default.removeItem(at: tempFile)
         }
         let fileHandle = try FileHandle(forWritingTo: tempFile)
 
         let task = Process()
-        task.launchPath = "/usr/bin/xcrun"
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
         task.arguments = arguments
         task.standardOutput = fileHandle
-        task.launch()
+        try task.run()
         task.waitUntilExit()
         try? fileHandle.close()
         if task.terminationStatus != 0 {
